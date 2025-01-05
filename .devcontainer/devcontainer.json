@@ -1,5 +1,5 @@
 {
-	"name": "Code - OSS",
+	"name": "Systematic",
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
@@ -36,7 +36,10 @@
 			]
 		}
 	},
-	"forwardPorts": [6080, 5901],
+	"forwardPorts": [
+		6080,
+		5901
+	],
 	"portsAttributes": {
 		"6080": {
 			"label": "VNC web client (noVNC)",

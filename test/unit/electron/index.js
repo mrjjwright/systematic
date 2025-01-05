@@ -238,11 +238,11 @@ app.on('ready', () => {
 		return {
 			product: {
 				version: '1.x.y',
-				nameShort: 'Code - OSS Dev',
-				nameLong: 'Code - OSS Dev',
-				applicationName: 'code-oss',
+				nameShort: 'Systematic Dev',
+				nameLong: 'Systematic Dev',
+				applicationName: 'systematic',
 				dataFolderName: '.vscode-oss',
-				urlProtocol: 'code-oss',
+				urlProtocol: 'systematic',
 			}
 		};
 	});
