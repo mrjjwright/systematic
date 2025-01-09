@@ -403,5 +403,7 @@ import './contrib/inlineCompletions/browser/inlineCompletions.contribution.js';
 import './contrib/dropOrPasteInto/browser/dropOrPasteInto.contribution.js';
 import { AllowedExtensionsService } from '../platform/extensionManagement/common/allowedExtensionsService.js';
 
+// Systematic
+import './contrib/systematic/browser/systematic.contribution.js';
 
 //#endregion
