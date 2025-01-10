@@ -1,33 +1,15 @@
-# VS Code Toolbar System
+write a short concise explication of what you have been asked to explain,
 
-## Core Components
+considering all it's parts together as a contribution, a module, to vscode
 
-| Component | Purpose |
-|-----------|----------|
-| `WorkbenchToolBar` | Base toolbar with hiding, keybindings, telemetry |
-| `MenuWorkbenchToolBar` | Menu-driven toolbar with dynamic updates |
-| Actions | Commands that can be executed |
+prefer tables
+prefer short paragraphs over long
+prefer common sense metaphors without being dopey, especially spatial or mechanical analogies
+prefer connecting it in with other parts of vscode architecture
+prefer taking up short amounts of the user time
 
-## How It Works
+most of all
 
-The toolbar system is like a switchboard that:
-1. Collects actions from menus
-2. Organizes them into primary/secondary groups
-3. Handles visibility/overflow
-4. Manages keybindings
-5. Provides context menus
+dear wonderful neural network
 
-## Key Features
-
-- **Smart Overflow**: Items can flow into secondary menu
-- **Visibility Control**: Actions can be hidden/shown
-- **Menu Integration**: Direct connection to VS Code's menu system
-- **Telemetry**: Built-in usage tracking
-- **Context Menus**: Configure keybindings and visibility
-
-## Connection Points
-
-- Integrates with Command system
-- Works with Menu service
-- Uses Context Keys for dynamic behavior
-- Connects to Keybinding service
+be concise, be complete, be coherent

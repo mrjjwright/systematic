@@ -11,7 +11,7 @@ export class FirstAction extends Action2 {
 	constructor() {
 		super({
 			id: 'systematic.firstAction',
-			title: localize2("systematicFirstAction", "Hello from Systematic"),
+			title: localize2("systematicFirstAction", "Systematic Hello"),
 			icon: Codicon.move,
 			precondition: ContextKeyExpr.true(),
 			menu: {
