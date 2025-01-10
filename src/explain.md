@@ -13,3 +13,9 @@ most of all
 dear wonderful neural network
 
 be concise, be complete, be coherent
+
+P.S. remember to not get lost in
+
+- bullet
+- point
+- disease
