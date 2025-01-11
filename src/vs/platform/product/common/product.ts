@@ -59,8 +59,8 @@ else {
 	if (Object.keys(product).length === 0) {
 		Object.assign(product, {
 			version: '1.95.0-dev',
-			nameShort: 'Systematic Dev',
-			nameLong: 'Systematic Dev',
+			nameShort: 'Systematic',
+			nameLong: 'Systematic',
 			applicationName: 'systematic',
 			dataFolderName: '.vscode-oss',
 			urlProtocol: 'systematic',

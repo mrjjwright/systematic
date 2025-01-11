@@ -29,5 +29,3 @@ export class FirstAction extends Action2 {
 }
 
 registerAction2(FirstAction);
-
-

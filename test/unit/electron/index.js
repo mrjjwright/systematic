@@ -238,8 +238,8 @@ app.on('ready', () => {
 		return {
 			product: {
 				version: '1.x.y',
-				nameShort: 'Systematic Dev',
-				nameLong: 'Systematic Dev',
+				nameShort: 'Systematic',
+				nameLong: 'Systematic',
 				applicationName: 'systematic',
 				dataFolderName: '.vscode-oss',
 				urlProtocol: 'systematic',
