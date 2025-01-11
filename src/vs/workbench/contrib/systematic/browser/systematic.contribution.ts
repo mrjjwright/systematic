@@ -12,14 +12,12 @@ export class SystematicControlModeContribution implements IWorkbenchContribution
 
 	static readonly ID = 'workbench.contrib.systematicControlMode';
 	private readonly controlModeKey: IContextKey<boolean>;
-	private readonly isSystematicKey: IContextKey<boolean>;
 
 	constructor(
 		@IContextKeyService contextKeyService: IContextKeyService,
 		@ILogService private readonly logService: ILogService
 	) {
 		contextKeyService.createKey(IS_SYSTEMATIC_KEY.key, true);
-		this.isSystematicKey = IS_SYSTEMATIC_KEY.bindTo(contextKeyService);
 		this.controlModeKey = IS_CONTROL_MODE.bindTo(contextKeyService);
 		this.logService.info('Systematic Control Mode initialized');
 		this.registerActions();
