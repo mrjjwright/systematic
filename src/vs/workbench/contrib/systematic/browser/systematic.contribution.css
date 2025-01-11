@@ -1,0 +1,12 @@
+.systematic-overlay {
+	display: flex;
+	flex-direction: column;
+	opacity: 0;
+	transition: opacity 0.2s ease-in-out;
+	border: 1px solid var(--vscode-widget-border);
+	backdrop-filter: blur(3px);
+}
+
+.systematic-overlay.visible {
+	opacity: 1;
+}
