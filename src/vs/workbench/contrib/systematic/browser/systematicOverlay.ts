@@ -22,6 +22,60 @@ export class SystematicOverlay extends Disposable {
 		@IInstantiationService private readonly instantiationService: IInstantiationService
 	) {
 		super();
+		this.registerViews();
+	}
+
+	registerViews() {
+		this.treeView = this._register(this.instantiationService.createInstance(TreeView, SystematicOverlay.SYSTEMATIC_TREE_ID, 'Systematic'));
+
+		const ViewContainerRegistry = Registry.as<IViewContainersRegistry>(Extensions.ViewContainersRegistry);
+
+		const viewContainer = ViewContainerRegistry.registerViewContainer({ id: 'test', title: localize2('test', 'test'), ctorDescriptor: new SyncDescriptor(ViewPaneContainer, ['workbench.view.systematic']) }, ViewContainerLocation.Sidebar);
+
+		const viewDescriptor: ITreeViewDescriptor = {
+			id: SystematicOverlay.SYSTEMATIC_TREE_ID,
+			name: TREE_VIEW_TITLE,
+			ctorDescriptor: new SyncDescriptor(TreeViewPane),
+			canToggleVisibility: true,
+			canMoveView: false,
+			treeView: this.treeView,
+			collapsed: false,
+			order: 100,
+			hideByDefault: true,
+		};
+
+		Registry.as<IViewsRegistry>(Extensions.ViewsRegistry).registerViews([viewDescriptor], viewContainer);
+
+		// Set up simple data provider with static data
+		this.treeView.dataProvider = {
+			getChildren: async (element?: ITreeItem): Promise<ITreeItem[] | undefined> => {
+				if (!element) {
+					return [
+						{
+							handle: 'item1',
+							label: { label: 'Item 1' },
+							collapsibleState: TreeItemCollapsibleState.Expanded
+						},
+						{
+							handle: 'item2',
+							label: { label: 'Item 2' },
+							collapsibleState: TreeItemCollapsibleState.Collapsed
+						}
+					];
+				}
+				if (element.handle === 'item1') {
+					return [
+						{
+							handle: 'item1.1',
+							label: { label: 'Item 1.1' },
+							collapsibleState: TreeItemCollapsibleState.None
+						}
+					];
+				}
+				return undefined;
+			}
+		};
+
 
 	}
 
@@ -51,59 +105,9 @@ export class SystematicOverlay extends Disposable {
 			treeContainer.style.overflow = 'auto';
 
 			// Initialize tree view
-			this.treeView = this._register(this.instantiationService.createInstance(TreeView, SystematicOverlay.SYSTEMATIC_TREE_ID, 'Systematic'));
-
-			const ViewContainerRegistry = Registry.as<IViewContainersRegistry>(Extensions.ViewContainersRegistry);
-
-			const viewContainer = ViewContainerRegistry.registerViewContainer({ id: 'test', title: localize2('test', 'test'), ctorDescriptor: new SyncDescriptor(ViewPaneContainer, ['workbench.view.systematic']) }, ViewContainerLocation.Sidebar);
-
-			const viewDescriptor: ITreeViewDescriptor = {
-				id: SystematicOverlay.SYSTEMATIC_TREE_ID,
-				name: TREE_VIEW_TITLE,
-				ctorDescriptor: new SyncDescriptor(TreeViewPane),
-				canToggleVisibility: true,
-				canMoveView: false,
-				treeView: this.treeView,
-				collapsed: false,
-				order: 100,
-				hideByDefault: true,
-			};
-
-			Registry.as<IViewsRegistry>(Extensions.ViewsRegistry).registerViews([viewDescriptor], viewContainer);
-
-			// Set up simple data provider with static data
-			this.treeView.dataProvider = {
-				getChildren: async (element?: ITreeItem): Promise<ITreeItem[] | undefined> => {
-					if (!element) {
-						return [
-							{
-								handle: 'item1',
-								label: { label: 'Item 1' },
-								collapsibleState: TreeItemCollapsibleState.Expanded
-							},
-							{
-								handle: 'item2',
-								label: { label: 'Item 2' },
-								collapsibleState: TreeItemCollapsibleState.Collapsed
-							}
-						];
-					}
-					if (element.handle === 'item1') {
-						return [
-							{
-								handle: 'item1.1',
-								label: { label: 'Item 1.1' },
-								collapsibleState: TreeItemCollapsibleState.None
-							}
-						];
-					}
-					return undefined;
-				}
-			};
-
-			this.treeView.setVisibility(true);
-			this.treeView.show(treeContainer);
-			this.treeView.refresh();
+			this.treeView!.setVisibility(true);
+			this.treeView!.show(treeContainer);
+			this.treeView!.refresh();
 			this.container?.classList.add('visible');
 		}
 	}

@@ -59,7 +59,7 @@ export class SystematicControlModeContribution extends Disposable implements IWo
 
 		if (!currentValue) {
 			if (!this.overlay) {
-				this.overlay = this.instantiationService.createInstance(SystematicOverlay);
+				this.overlay = this._register(this.instantiationService.createInstance(SystematicOverlay));
 			}
 			this.overlay.show();
 		} else if (this.overlay) {
@@ -67,14 +67,6 @@ export class SystematicControlModeContribution extends Disposable implements IWo
 		}
 
 		this.logService.info(`Control mode is now: ${!currentValue}`);
-	}
-
-	override dispose(): void {
-		if (this.overlay) {
-			this.overlay.dispose();
-			this.overlay = null;
-		}
-		super.dispose();
 	}
 }
 
