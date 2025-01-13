@@ -22,29 +22,10 @@ export class SystematicOverlay extends Disposable {
 		@IInstantiationService private readonly instantiationService: IInstantiationService
 	) {
 		super();
-		this.registerViews();
 	}
 
 	registerViews() {
 		this.treeView = this._register(this.instantiationService.createInstance(TreeView, SystematicOverlay.SYSTEMATIC_TREE_ID, 'Systematic'));
-
-		const ViewContainerRegistry = Registry.as<IViewContainersRegistry>(Extensions.ViewContainersRegistry);
-
-		const viewContainer = ViewContainerRegistry.registerViewContainer({ id: 'test', title: localize2('test', 'test'), ctorDescriptor: new SyncDescriptor(ViewPaneContainer, ['workbench.view.systematic']) }, ViewContainerLocation.Sidebar);
-
-		const viewDescriptor: ITreeViewDescriptor = {
-			id: SystematicOverlay.SYSTEMATIC_TREE_ID,
-			name: TREE_VIEW_TITLE,
-			ctorDescriptor: new SyncDescriptor(TreeViewPane),
-			canToggleVisibility: true,
-			canMoveView: false,
-			treeView: this.treeView,
-			collapsed: false,
-			order: 100,
-			hideByDefault: true,
-		};
-
-		Registry.as<IViewsRegistry>(Extensions.ViewsRegistry).registerViews([viewDescriptor], viewContainer);
 
 		// Set up simple data provider with static data
 		this.treeView.dataProvider = {
@@ -75,8 +56,6 @@ export class SystematicOverlay extends Disposable {
 				return undefined;
 			}
 		};
-
-
 	}
 
 	show(): void {
@@ -99,6 +78,8 @@ export class SystematicOverlay extends Disposable {
 			this.container.style.display = 'flex';
 			this.container.style.flexDirection = 'column';
 
+			this.registerViews();
+
 			// Create tree view container
 			const treeContainer = append(this.container, $('.systematic-tree-container'));
 			treeContainer.style.flex = '1';
@@ -120,6 +101,7 @@ export class SystematicOverlay extends Disposable {
 				if (this.container) {
 					this.container.remove();
 					this.container = null;
+					this.treeView?.dispose();
 					this.treeView = null;
 				}
 			}, 200); // Match transition duration
