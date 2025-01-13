@@ -2,12 +2,9 @@ import { Disposable } from '../../../../base/common/lifecycle.js';
 import { IWorkbenchLayoutService } from '../../../services/layout/browser/layoutService.js';
 import { $, append } from '../../../../base/browser/dom.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
-import { TreeView, TreeViewPane } from '../../../browser/parts/views/treeView.js';
-import { Extensions, ITreeItem, ITreeViewDescriptor, IViewContainersRegistry, IViewsRegistry, TreeItemCollapsibleState, ViewContainerLocation } from '../../../common/views.js';
-import { Registry } from '../../../../platform/registry/common/platform.js';
+import { TreeView, } from '../../../browser/parts/views/treeView.js';
+import { ITreeItem, TreeItemCollapsibleState } from '../../../common/views.js';
 import { localize2, ILocalizedString } from '../../../../nls.js';
-import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
-import { ViewPaneContainer } from '../../../browser/parts/views/viewPaneContainer.js';
 
 export const TREE_VIEW_TITLE: ILocalizedString = localize2('sysematic.tree.title', "Test Tree");
 
@@ -64,7 +61,7 @@ export class SystematicOverlay extends Disposable {
 			this.container = append(workbenchContainer, $('.systematic-overlay'));
 			this.container.id = SystematicOverlay.SYSTEMATIC_OVERLAY_ID;
 
-			// Style the overlay to cover 80% of the workbench
+			// Position the overlay
 			this.container.style.position = 'absolute';
 			this.container.style.top = '10%';
 			this.container.style.left = '10%';
@@ -72,25 +69,42 @@ export class SystematicOverlay extends Disposable {
 			this.container.style.height = '80%';
 			this.container.style.backgroundColor = 'var(--vscode-editor-background)';
 			this.container.style.zIndex = '1000';
-			this.container.style.boxShadow = '0 0 8px var(--vscode-widget-shadow)';
-			this.container.style.borderRadius = '6px';
-			this.container.style.padding = '20px';
 			this.container.style.display = 'flex';
 			this.container.style.flexDirection = 'column';
 
-			this.registerViews();
-
-			// Create tree view container
+			// Create tree container with explicit dimensions
 			const treeContainer = append(this.container, $('.systematic-tree-container'));
 			treeContainer.style.flex = '1';
-			treeContainer.style.overflow = 'auto';
+			treeContainer.style.display = 'flex';
+			treeContainer.style.height = '100%';  // Important
+			treeContainer.style.width = '100%';   // Important
+			treeContainer.style.overflow = 'hidden'; // Let the tree handle scrolling
 
-			// Initialize tree view
+			this.registerViews();
+
+			// Initialize tree view with layout
 			this.treeView!.setVisibility(true);
 			this.treeView!.show(treeContainer);
+
+			// Important: Initial layout
+			const dimension = this.getTreeDimension(treeContainer);
+			this.treeView!.layout(dimension.height, dimension.width);
+
+			// Register a layout listener
+			this._register(this.layoutService.onDidLayoutActiveContainer(() => {
+				const dimension = this.getTreeDimension(treeContainer);
+				this.treeView!.layout(dimension.height, dimension.width);
+			}));
+
 			this.treeView!.refresh();
-			this.container?.classList.add('visible');
+			this.container.classList.add('visible');
 		}
+	}
+
+	private getTreeDimension(container: HTMLElement) {
+		const width = container.clientWidth;
+		const height = container.clientHeight;
+		return { width, height };
 	}
 
 	hide(): void {
@@ -113,3 +127,4 @@ export class SystematicOverlay extends Disposable {
 		super.dispose();
 	}
 }
+
