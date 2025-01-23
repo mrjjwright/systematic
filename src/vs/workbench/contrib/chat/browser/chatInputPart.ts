@@ -87,7 +87,7 @@ import { ChatRequestDynamicVariablePart } from '../common/chatParserTypes.js';
 import { IChatFollowup } from '../common/chatService.js';
 import { IChatVariablesService } from '../common/chatVariables.js';
 import { IChatResponseViewModel } from '../common/chatViewModel.js';
-import { IChatHistoryEntry, IChatInputState, IChatWidgetHistoryService } from '../common/chatWidgetHistoryService.js';
+import { ChatInputHistoryMaxEntries, IChatHistoryEntry, IChatInputState, IChatWidgetHistoryService } from '../common/chatWidgetHistoryService.js';
 import { ILanguageModelChatMetadata, ILanguageModelsService } from '../common/languageModels.js';
 import { CancelAction, ChatModelPickerActionId, ChatSubmitAction, ChatSubmitSecondaryAgentAction, IChatExecuteActionContext } from './actions/chatExecuteActions.js';
 import { ImplicitContextAttachmentWidget } from './attachments/implicitContextAttachment.js';
@@ -99,7 +99,6 @@ import { IDisposableReference } from './chatContentParts/chatCollections.js';
 import { CollapsibleListPool, IChatCollapsibleListItem } from './chatContentParts/chatReferencesContentPart.js';
 import { ChatDragAndDrop, EditsDragAndDrop } from './chatDragAndDrop.js';
 import { ChatEditingRemoveAllFilesAction, ChatEditingShowChangesAction } from './chatEditing/chatEditingActions.js';
-import { ChatEditingSaveAllAction } from './chatEditorSaving.js';
 import { ChatFollowups } from './chatFollowups.js';
 import { IChatViewState } from './chatWidget.js';
 import { ChatFileReference } from './contrib/chatDynamicVariables/chatFileReference.js';
@@ -206,17 +205,8 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 			}
 		}
 
-		for (const uri of this.instructionAttachmentsPart.references) {
-			contextArr.push({
-				id: 'vscode.prompt.instructions',
-				name: basename(uri.path),
-				value: uri,
-				isSelection: false,
-				enabled: true,
-				isFile: true,
-				isDynamic: true,
-			});
-		}
+		contextArr
+			.push(...this.instructionAttachmentsPart.chatAttachments);
 
 		return contextArr;
 	}
@@ -381,7 +371,7 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 		this.getInputState = (): IChatInputState => {
 			return {
 				...getContribsInputState(),
-				chatContextAttachments: this._attachmentModel.attachments,
+				chatContextAttachments: this._attachmentModel.attachments.filter(attachment => !attachment.isImage),
 			};
 		};
 		this.inputEditorMaxHeight = this.options.renderStyle === 'compact' ? INPUT_EDITOR_MAX_HEIGHT / 3 : INPUT_EDITOR_MAX_HEIGHT;
@@ -392,7 +382,7 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 		this.promptInstructionsAttached = ChatContextKeys.instructionsAttached.bindTo(contextKeyService);
 
 		this.history = this.loadHistory();
-		this._register(this.historyService.onDidClearHistory(() => this.history = new HistoryNavigator2([{ text: '' }], 50, historyKeyFn)));
+		this._register(this.historyService.onDidClearHistory(() => this.history = new HistoryNavigator2([{ text: '' }], ChatInputHistoryMaxEntries, historyKeyFn)));
 
 		this._register(this.configurationService.onDidChangeConfiguration(e => {
 			if (e.affectsConfiguration(AccessibilityVerbositySettingId.Chat)) {
@@ -1310,7 +1300,7 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 				arg: { sessionId: chatEditingSession.chatSessionId },
 			},
 			buttonConfigProvider: (action) => {
-				if (action.id === ChatEditingShowChangesAction.ID || action.id === ChatEditingSaveAllAction.ID || action.id === ChatEditingRemoveAllFilesAction.ID) {
+				if (action.id === ChatEditingShowChangesAction.ID || action.id === ChatEditingRemoveAllFilesAction.ID) {
 					return { showIcon: true, showLabel: false, isSecondary: true };
 				}
 				return undefined;
