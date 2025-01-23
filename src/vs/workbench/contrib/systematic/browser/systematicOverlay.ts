@@ -1,7 +1,6 @@
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { IWorkbenchLayoutService } from '../../../services/layout/browser/layoutService.js';
 import { $, append } from '../../../../base/browser/dom.js';
-import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { GridView } from '../../../../base/browser/ui/grid/gridview.js';
 
 export class SystematicOverlay extends Disposable {
@@ -11,12 +10,11 @@ export class SystematicOverlay extends Disposable {
 
 	constructor(
 		@IWorkbenchLayoutService private readonly layoutService: IWorkbenchLayoutService,
-		@IInstantiationService private readonly instantiationService: IInstantiationService
 	) {
 		super();
 	}
 
-	registerViews() {
+	createGridView(inContainer: HTMLElement): GridView {
 		this.gridView = this._register(new GridView());
 
 		// Set up simple data provider with static data
@@ -26,7 +24,7 @@ export class SystematicOverlay extends Disposable {
 			maximumWidth: Number.POSITIVE_INFINITY,
 			minimumHeight: 100,
 			maximumHeight: Number.POSITIVE_INFINITY,
-			onDidChange: () => { },
+			onDidChange: () => { return { dispose: () => { } }; },
 			layout: (width: number, height: number) => {
 				this.gridView!.layout(width, height);
 			}
@@ -38,7 +36,7 @@ export class SystematicOverlay extends Disposable {
 			maximumWidth: Number.POSITIVE_INFINITY,
 			minimumHeight: 100,
 			maximumHeight: Number.POSITIVE_INFINITY,
-			onDidChange: () => { },
+			onDidChange: () => { return { dispose: () => { } }; },
 			layout: (width: number, height: number) => {
 				this.gridView!.layout(width, height);
 			}
@@ -46,6 +44,9 @@ export class SystematicOverlay extends Disposable {
 
 		this.gridView.addView(view1, 200, [0]);
 		this.gridView.addView(view2, 200, [1]);
+
+		inContainer.appendChild(this.gridView.element);
+		return this.gridView;
 	}
 
 	show(): void {
@@ -73,7 +74,7 @@ export class SystematicOverlay extends Disposable {
 			gridContainer.style.width = '100%';   // Important
 			gridContainer.style.overflow = 'hidden'; // Let the grid handle scrolling
 
-			this.registerViews();
+			this.createGridView(gridContainer);
 
 			// Initialize grid view with layout
 			this.gridView!.layout(gridContainer.clientWidth, gridContainer.clientHeight);
