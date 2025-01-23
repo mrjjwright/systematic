@@ -1,58 +1,52 @@
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { IWorkbenchLayoutService } from '../../../services/layout/browser/layoutService.js';
 import { $, append } from '../../../../base/browser/dom.js';
-import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
-import { TreeView, } from '../../../browser/parts/views/treeView.js';
-import { ITreeItem, TreeItemCollapsibleState } from '../../../common/views.js';
-import { localize2, ILocalizedString } from '../../../../nls.js';
-
-export const TREE_VIEW_TITLE: ILocalizedString = localize2('sysematic.tree.title', "Test Tree");
+import { GridView } from '../../../../base/browser/ui/grid/gridview.js';
 
 export class SystematicOverlay extends Disposable {
 	private static readonly SYSTEMATIC_OVERLAY_ID = 'systematic-overlay';
-	static readonly SYSTEMATIC_TREE_ID = 'systematic-tree';
 	private container: HTMLElement | null = null;
-	private treeView: TreeView | null = null;
+	private gridView: GridView | null = null;
 
 	constructor(
 		@IWorkbenchLayoutService private readonly layoutService: IWorkbenchLayoutService,
-		@IInstantiationService private readonly instantiationService: IInstantiationService
 	) {
 		super();
 	}
 
-	registerViews() {
-		this.treeView = this._register(this.instantiationService.createInstance(TreeView, SystematicOverlay.SYSTEMATIC_TREE_ID, 'Systematic'));
+	createGridView(inContainer: HTMLElement): GridView {
+		this.gridView = this._register(new GridView());
 
 		// Set up simple data provider with static data
-		this.treeView.dataProvider = {
-			getChildren: async (element?: ITreeItem): Promise<ITreeItem[] | undefined> => {
-				if (!element) {
-					return [
-						{
-							handle: 'item1',
-							label: { label: 'Item 1' },
-							collapsibleState: TreeItemCollapsibleState.Expanded
-						},
-						{
-							handle: 'item2',
-							label: { label: 'Item 2' },
-							collapsibleState: TreeItemCollapsibleState.Collapsed
-						}
-					];
-				}
-				if (element.handle === 'item1') {
-					return [
-						{
-							handle: 'item1.1',
-							label: { label: 'Item 1.1' },
-							collapsibleState: TreeItemCollapsibleState.None
-						}
-					];
-				}
-				return undefined;
+		const view1 = {
+			element: document.createElement('div'),
+			minimumWidth: 100,
+			maximumWidth: Number.POSITIVE_INFINITY,
+			minimumHeight: 100,
+			maximumHeight: Number.POSITIVE_INFINITY,
+			onDidChange: () => { return { dispose: () => { } }; },
+			layout: (width: number, height: number) => {
+				this.gridView!.layout(width, height);
 			}
 		};
+
+		const view2 = {
+			element: document.createElement('div'),
+			minimumWidth: 100,
+			maximumWidth: Number.POSITIVE_INFINITY,
+			minimumHeight: 100,
+			maximumHeight: Number.POSITIVE_INFINITY,
+			onDidChange: () => { return { dispose: () => { } }; },
+			layout: (width: number, height: number) => {
+				this.gridView!.layout(width, height);
+			}
+		};
+
+		this.gridView.addView(view1, 200, [0]);
+		this.gridView.addView(view2, 200, [1]);
+
+		inContainer.appendChild(this.gridView.element);
+		return this.gridView;
 	}
 
 	show(): void {
@@ -72,39 +66,26 @@ export class SystematicOverlay extends Disposable {
 			this.container.style.display = 'flex';
 			this.container.style.flexDirection = 'column';
 
-			// Create tree container with explicit dimensions
-			const treeContainer = append(this.container, $('.systematic-tree-container'));
-			treeContainer.style.flex = '1';
-			treeContainer.style.display = 'flex';
-			treeContainer.style.height = '100%';  // Important
-			treeContainer.style.width = '100%';   // Important
-			treeContainer.style.overflow = 'hidden'; // Let the tree handle scrolling
+			// Create grid container with explicit dimensions
+			const gridContainer = append(this.container, $('.systematic-grid-container'));
+			gridContainer.style.flex = '1';
+			gridContainer.style.display = 'flex';
+			gridContainer.style.height = '100%';  // Important
+			gridContainer.style.width = '100%';   // Important
+			gridContainer.style.overflow = 'hidden'; // Let the grid handle scrolling
 
-			this.registerViews();
+			this.createGridView(gridContainer);
 
-			// Initialize tree view with layout
-			this.treeView!.setVisibility(true);
-			this.treeView!.show(treeContainer);
-
-			// Important: Initial layout
-			const dimension = this.getTreeDimension(treeContainer);
-			this.treeView!.layout(dimension.height, dimension.width);
+			// Initialize grid view with layout
+			this.gridView!.layout(gridContainer.clientWidth, gridContainer.clientHeight);
 
 			// Register a layout listener
 			this._register(this.layoutService.onDidLayoutActiveContainer(() => {
-				const dimension = this.getTreeDimension(treeContainer);
-				this.treeView!.layout(dimension.height, dimension.width);
+				this.gridView!.layout(gridContainer.clientWidth, gridContainer.clientHeight);
 			}));
 
-			this.treeView!.refresh();
 			this.container.classList.add('visible');
 		}
-	}
-
-	private getTreeDimension(container: HTMLElement) {
-		const width = container.clientWidth;
-		const height = container.clientHeight;
-		return { width, height };
 	}
 
 	hide(): void {
@@ -115,8 +96,8 @@ export class SystematicOverlay extends Disposable {
 				if (this.container) {
 					this.container.remove();
 					this.container = null;
-					this.treeView?.dispose();
-					this.treeView = null;
+					this.gridView?.dispose();
+					this.gridView = null;
 				}
 			}, 200); // Match transition duration
 		}
@@ -127,4 +108,3 @@ export class SystematicOverlay extends Disposable {
 		super.dispose();
 	}
 }
-
