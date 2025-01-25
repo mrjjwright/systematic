@@ -1,194 +1,152 @@
-# Transformer
+# Transformer: A Visual Programming Environment for Content Transformation
 
-A tool for semi technical works to track, manage and complete work with AI, either by themselves, or with their coworkers
+## Context and Challenge
 
-## Vision & Philosophy
+You are tasked with designing a sophisticated contribution to VS Code that reimagines the workbench to create a visual programming environment for content transformation. This system will enable semi-technical users to create, visualize, and manage AI-powered workflows across their content using native VS Code components and patterns.
 
-Transformer accomplishes its goals by being:
+## Core Architecture Requirements
 
-- Calm and relaxed in its approach
-- Static and mechanical in its operations
-- Simple and coherent in its design
-- Flowing and stress-free in its user experience
+### 1. Native VS Code Integration
 
-## Why VSCode
+- Leverage VS Code's core classes and services:
+  - TreeView for hierarchical data representation
+  - GridView for layout management
+  - Contribution model for extensibility
+  - ContextKeyService for state management
+  - Monaco editor for rendering
+  - NO external web views or non-native components
 
-VSCode has proven itself as the foundation for complex workflows across the software industry. Its intuitive interface combined with extensive customization capabilities makes it an ideal platform for both technical and semi-technical work. The editor's rich ecosystem of extensions and strong market presence has led to numerous AI-integrated forks and variations, capturing a significant share of the development tools market. This widespread adoption and adaptability makes it the perfect platform for bridging traditional development workflows with emerging AI-powered productivity tools.
+### 2. Workbench Layout Transformation
 
-#### What exactly are we transforming
+Replicate the standard VS Code workbench layout in another layout for Transformer that can be used as follows:
 
-```mermaid
-graph LR
-    subgraph "Non-Technical Context"
-        U[User Knowledge & Intent]
-        S[Snapshot Tool]
-    end
+- Left: Retain the Explorer view/Activity Bar with modifications
+- Center: Replace editor area with a grid of TreeViews
+- Right: Dedicated chat/interaction panel
+- Bottom: Detail view panel for content preview, essentially a detail editor that responds to what is chosen in a tree view
 
-    subgraph "Transformer"
-        T[Transformer Bridge]
-    end
+### 3. Visual Programming Core
 
-    subgraph "Technical Context"
-        V[VSCode]
-        G[Git Systems]
-        F[File Systems]
-    end
+Design a system of interconnected TreeViews where:
 
-    U --> S
-    S --> T
-    T --> V
-    T --> G
-    T --> F
+- Each TreeView represents a transformation step, e.g. concatenating 2 or more files from the tree view before
+- Nodes can be connected across TreeViews to create workflows but not by creating lines, some other way of making the connection should be designed
+- an example of a way to connect nodes would be to select a node in a tree and then push the "=" key, or the "@" key or perhaps different ways of activating a mode of connection, at that point the interface might respond different as the user navigates around, perhaps a different selection or hover color. When the user pushes enter or otherwise uses mouse to select another node, then the tree view would show as being linked with a special reference and rendering of that node that could be jumped to.
+- trees would mix content from files, simple JSON values, nodes are identified by their content not by any name. Except some nodes are names because they are folders that hold content so we can still name things so that trees can have named parameters in a way
 
-    style U fill:#e1f5fe
-    style S fill:#e1f5fe
-    style T fill:#fff3e0
-    style V fill:#e8f5e9
-    style G fill:#e8f5e9
-    style F fill:#e8f5e9
-```
+## Key Design Challenges
 
-Each domain serves a specific purpose:
+1. **State Management**
 
-- `Non-Technical Context`: Capture immediate context/intent
-- `Transformer`: Visual representation of relationships/plans
-- `Technical Context`: Professional-grade content organization
+- Leverage ContextKeyService for managing complex workflow states
+- Design a clean state management architecture that can handle:
+  - Node selection states
+  - Connection states
+  - Transformation progress
+  - Validation states
 
-The magic is in the automatic translation between domains:
+4. **TreeView Grid Layout**
 
-- User Knowledge → Snapshot Tool (AI interprets context)
-- Snapshot Tool → Transformer Bridge (structures the relationships)
-- Transformer Bridge → VSCode (professional storage)
-- Transformer Bridge → Git Systems (version control)
-- Transformer Bridge → File Systems (professional storage)
+- Design an efficient grid layout system for multiple TreeViews
+- Consider dynamic resizing and reordering
+- Handle overflow and navigation in complex workflows
 
-It's simple because each translation is natural:
+## Implementation Considerations
 
-- Users think in knowledge and intent
-- VSCode thinks in files and trees
-- Git thinks in changes and history
-- AI thinks in natural language
+### Core VS Code Classes to Leverage
 
-The UI just needs to facilitate these translations while keeping the complexity hidden.
+1. **Workbench**
 
-These are lofty goals, yet we have stable foundations through:
+- IWorkbenchLayoutService
+- IViewsService
+- IEditorService
 
-- VSCode and Git
-- Electron and Node
-- Mac and Windows support
+2. **Views and Panels**
 
-## Core Concepts
+- TreeView
+- GridView
+- ViewContainer
+- IView
+- IPanelService
 
-### Snapshots
+3. **Context and State**
 
-The foundation of Transformer is the Snapshot tool - a general purpose context capture tool that will eventually cover multiple modalities:
+- IContextKeyService
+- IContextMenuService
+- ICommandService
 
-- Text
-- Voice
-- Screen
-- Video (future)
+4. **Events and Updates**
 
-Snapshots produce special files with the `trans://` protocol that are opened in Transformer. These trans files:
+- Event handling system
+- Custom events for transformation updates
+- Progress indication
 
-- Are artifacts in our git subtrees
-- Guide key processes and subsystems
-- Are MDX files mixing markdown and XML
-- Can compose other trans files via JSX (no React, just compositional JSX)
+### Extension Points
 
-### Context Management
+1. **View Containers**
 
-Snapshots feed into a sophisticated context management system:
+- Main transformation grid container
+- Chat panel container
+- Detail view container
 
-- Users explicitly control when to input and query the system
-- Queries can be global to a project or granular
-- Tied to VSCode's ContextKeyService
-- Snapshot builders provide UI around Snapshot services
+2. **Commands and Menus**
 
-### Architecture
+- Node connection commands
+- Transformation execution commands
+- Context menu contributions
 
-Transformer is built on nuanced layers of abstraction:
+3. **Configuration**
 
-- Services
-- Interfaces
-- Layers
-- Designed for semi-technical community extension
+- Layout preferences
+- Transformation settings
+- Visual styling options
 
-It flows towards plain yet powerful technologies:
+## Design Principles
 
-- Git
-- VSCode
-- ContextKeyService integration
-- SnapshotQueryInputService
-- SnapshotQueryIntent objects
+1. **Native First**
 
-This architecture enables rich workflows involving AI assistants provided by Transperfect, powering both internal teams and customers.
+- Use VS Code's native UI components
+- Follow VS Code's interaction patterns
+- Maintain consistent styling
 
-#### Motivation
+2. **Functional Transformation**
 
-lets image the employee is a Program Manager, she logs in
+- Each transformation step should be pure and isolated
+- Clear input/output contracts
+- Composable operations
 
-she has a bunch of emails from her clients
+3. **Visual Clarity**
 
-and her coworkers
+- Clear visual hierarchy
+- Intuitive node connections
+- Progressive disclosure of complexity
 
-and they are collaborating on client projects
+4. **Performance**
 
-she might have one from her boss about a new client
+- Efficient rendering of multiple TreeViews
+- Smooth interaction with large datasets
+- Responsive transformation execution
 
-she might be collaborating with her peers on a new program management iniative
+## Expected Capabilities
 
-she will have questions, she will be catching up with threads and synthesizing new information
+The system should enable users to:
 
-she will in other words be consuming content, mostly by reading it and looking at visuals and then meeting and talking with others about what she has seen
+1. Create and manage transformation workflows visually
+2. Connect nodes across different TreeViews
+3. Preview transformation results in real-time
+4. Save and load workflow configurations
+5. Share workflows with team members
+6. Debug and monitor transformation progress
+7. Extend the system with custom transformations
 
-she will be obliged to produce content
+## Technical Constraints
 
-meaning she will be obliged to respond to client questions and really all sorts of questions
+1. Must use VS Code's native component model
+2. No external web views or frameworks
+3. Must integrate with VS Code's theming system
+4. Must support VS Code's extension lifecycle
+5. Must maintain VS Code's performance standards
 
-there will be so many questions
+Consider this a foundation for reimagining VS Code's workbench while maintaining its core strengths and extending them in new directions. The goal is to create a powerful yet intuitive visual programming environment that feels native to VS Code while enabling new workflows for semi-technical users.
 
-she will know answers to these with different degrees of certainity
-
-in other words she will create an dependency chain, a tree
-
-there will be some leaves that actually can be plucked right from the trunk
-
-e.g. a client could ask a clear question about receipt of something and that just needs simple acknowledgement
-
-it requires no checks with other sources of information, or checking reference material, older context from emails
-
-it requires no real consideration of HOW to respond
-
-she can just say "yes we received that and it looks great, thanks!"
-
-however some of the other emails, will have varying branches, some with single chains resulting in one leave
-
-meaning first I need to check this, and now yes I can reply
-
-or first I need to check this, and then check this and then check this and then I can reply
-
-however, some that set off a bunch of other branches, that split off
-
-and those can be broken into 2 main categories
-
-there is the case when she might need to branch off some parallel workflows which she ultimately intends to merge into a single answer but has to set off a complex branches of actions, all which ultimately result in one meaured answer, one leaf, all as we have seen before
-
-however, in the other reasons to do this level of extensive branching is because what she has read has told her that she should be setting multiple new branches of work, simple new tasks with their own independent workflow
-
-it is interesting to ask what would be the ideal professional tool on which to builid both a visualization of this for her and a means for her to advance through the tree
-
-on top of a vscode fork, a bit of a weird thing to interject but I am confident it is the right platform for numerous reasons
-
-on top of git, because let's face it, git is the right way to manage content
-
-she needs a central view and herself or an AI agent should be able to advance down the branches, pruning them, plucking, finishing, removing them
-
-so...the solution must be static, safe, reversible, local, yet tied into her desktop
-
-### Let's use Transformer
-
-Let's now use imagine and see actual Mermaid graphs that Transformer can provide from Sarah's snapshot.
-
-Let's break down what snapshots Sarah might take as she completes her tasks.
-
-And how Transformer would interpret them and what are some example Mermaid diagrams it might show her.
+Even if you can't design the actual working product, ideas on how this could work are appreciated as well.

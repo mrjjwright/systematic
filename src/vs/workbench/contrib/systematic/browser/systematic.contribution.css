@@ -16,6 +16,12 @@
 	padding: 4px 8px;
 }
 
+
+
+.systematic-tree-container .customview-tree {
+	width: 200px;
+}
+
 .systematic-tree-container .monaco-list-row:hover:not(.selected) {
 	background-color: var(--vscode-list-hoverBackground);
 }
