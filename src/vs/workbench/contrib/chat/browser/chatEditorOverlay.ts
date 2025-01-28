@@ -136,7 +136,6 @@ class ChatEditorOverlayWidget implements IOverlayWidget {
 
 								const listener = this._store.add(new MutableDisposable());
 
-								let timeIsSet = false;
 								this._store.add(autorun(r => {
 
 									assertType(this.label);
@@ -145,10 +144,9 @@ class ChatEditorOverlayWidget implements IOverlayWidget {
 									const ctrl = that._entry.read(r)?.entry.autoAcceptController.read(r);
 									if (ctrl) {
 
-										if (!timeIsSet) {
-											this.element.style.setProperty('--vscode-action-item-auto-timeout', `${ctrl.remaining}s`);
-											timeIsSet = true;
-										}
+										const r = -100 * (ctrl.remaining / ctrl.total);
+
+										this.element.style.setProperty('--vscode-action-item-auto-timeout', `${r}%`);
 
 										this.element.classList.toggle('auto', true);
 										listener.value = addDisposableGenericMouseMoveListener(this.element, () => ctrl.cancel());
@@ -257,8 +255,8 @@ class ChatEditorOverlayWidget implements IOverlayWidget {
 		this._showStore.add(autorun(r => {
 			const value = activeEntry.rewriteRatio.read(r);
 			reset(this._progressNode, (value === 0
-				? localize('generating', "Generating edits")
-				: localize('applyingPercentage', "{0}% Applying edits", Math.round(value * 100))));
+				? localize('generating', "Generating Edits")
+				: localize('applyingPercentage', "{0}% Applying Edits", Math.round(value * 100))));
 		}));
 
 		this._showStore.add(autorun(r => {

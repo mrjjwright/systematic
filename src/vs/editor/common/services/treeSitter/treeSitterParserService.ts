@@ -173,7 +173,7 @@ export class TreeSitterParseResult implements IDisposable, ITreeSitterParseResul
 	get tree() { return this._lastFullyParsed; }
 	get isDisposed() { return this._isDisposed; }
 
-	private findChangedNodes(newTree: Parser.Tree, oldTree: Parser.Tree, version: number): ChangedRange[] {
+	private findChangedNodes(newTree: Parser.Tree, oldTree: Parser.Tree): ChangedRange[] {
 		const newCursor = newTree.walk();
 		const oldCursor = oldTree.walk();
 		const gotoNextSibling = () => {
@@ -236,22 +236,28 @@ export class TreeSitterParseResult implements IDisposable, ITreeSitterParseResul
 			oldFindPrev.resetTo(oldCursor);
 			const startingNode = newCursor.currentNode;
 			do {
-				if (newFindPrev.currentNode.previousSibling) {
+				if (newFindPrev.currentNode.previousSibling && ((newFindPrev.currentNode.endIndex - newFindPrev.currentNode.startIndex) !== 0)) {
 					newFindPrev.gotoPreviousSibling();
 					oldFindPrev.gotoPreviousSibling();
 				} else {
-					newFindPrev.gotoParent();
-					oldFindPrev.gotoParent();
+					while (!newFindPrev.currentNode.previousSibling && newFindPrev.currentNode.parent) {
+						newFindPrev.gotoParent();
+						oldFindPrev.gotoParent();
+					}
+					newFindPrev.gotoPreviousSibling();
+					oldFindPrev.gotoPreviousSibling();
 				}
+			} while ((newFindPrev.currentNode.endIndex > startingNode.startIndex)
+			&& (newFindPrev.currentNode.parent || newFindPrev.currentNode.previousSibling)
 
-			} while (newFindPrev.currentNode.startIndex === startingNode.startIndex && (newFindPrev.currentNode.parent || newFindPrev.currentNode.previousSibling) && (newFindPrev.currentNode.id !== startingNode.id));
-			if ((newFindPrev.currentNode.id !== startingNode.id) && newFindPrev.currentNode.endIndex < startingNode.startIndex) {
+				&& (newFindPrev.currentNode.id !== startingNode.id));
+
+			if ((newFindPrev.currentNode.id !== startingNode.id) && newFindPrev.currentNode.endIndex <= startingNode.startIndex) {
 				return { old: oldFindPrev.currentNode, new: newFindPrev.currentNode };
 			} else {
 				return undefined;
 			}
 		};
-
 		do {
 			if (newCursor.currentNode.hasChanges) {
 				// Check if only one of the children has changes.
@@ -269,8 +275,14 @@ export class TreeSitterParseResult implements IDisposable, ITreeSitterParseResul
 				if (changedChildren.length >= 1) {
 					next = gotoNthChild(indexChangedChildren[0]);
 				} else if (changedChildren.length === 0) {
+					// walk up again until we get to the first one that's named as unnamed nodes can be too granular
+					while (newCursor.currentNode.parent && !newCursor.currentNode.isNamed && next) {
+						next = gotoParent();
+					}
+
 					const newNode = newCursor.currentNode;
 					const oldNode = oldCursor.currentNode;
+
 					const newEndPosition = new Position(newNode.endPosition.row + 1, newNode.endPosition.column + 1);
 					const oldEndIndex = oldNode.endIndex;
 
@@ -336,7 +348,7 @@ export class TreeSitterParseResult implements IDisposable, ITreeSitterParseResul
 
 			let ranges: RangeChange[] | undefined;
 			if (this._lastFullyParsedWithEdits && this._lastFullyParsed) {
-				ranges = this.calculateRangeChange(this.findChangedNodes(this._lastFullyParsedWithEdits, this._lastFullyParsed, version));
+				ranges = this.calculateRangeChange(this.findChangedNodes(this._lastFullyParsedWithEdits, this._lastFullyParsed));
 			}
 
 			const completed = await this._parseAndUpdateTree(model, version);
@@ -360,7 +372,7 @@ export class TreeSitterParseResult implements IDisposable, ITreeSitterParseResul
 				newEndIndex: change.rangeOffset + change.text.length,
 				startPosition: { row: change.range.startLineNumber - 1, column: change.range.startColumn - 1 },
 				oldEndPosition: { row: change.range.endLineNumber - 1, column: change.range.endColumn - 1 },
-				newEndPosition: { row: change.range.startLineNumber + summedTextLengths.lineCount - 1, column: summedTextLengths.columnCount }
+				newEndPosition: { row: change.range.startLineNumber + summedTextLengths.lineCount - 1, column: summedTextLengths.lineCount ? summedTextLengths.columnCount : (change.range.endColumn + summedTextLengths.columnCount) }
 			};
 			this._tree?.edit(edit);
 			this._lastFullyParsedWithEdits?.edit(edit);

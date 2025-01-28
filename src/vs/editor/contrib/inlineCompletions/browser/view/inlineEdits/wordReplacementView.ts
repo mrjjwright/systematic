@@ -366,7 +366,7 @@ export class LineReplacementView extends Disposable implements IInlineEditsView 
 		const lowerText = new Rect(lowerBackground.left + PADDING, lowerBackground.top + PADDING, lowerBackground.right, lowerBackground.bottom);
 
 		// Add ViewZone if needed
-		const shouldShowViewZone = this._editor.editor.getOption(EditorOption.inlineSuggest).edits.experimental.useCodeOverlay === 'moveCodeWhenPossible';
+		const shouldShowViewZone = this._editor.editor.getOption(EditorOption.inlineSuggest).edits.codeShifting;
 		if (shouldShowViewZone) {
 			const viewZoneHeight = lowerBackground.height + 2 * PADDING;
 			const viewZoneLineNumber = this._originalRange.endLineNumberExclusive;
@@ -495,8 +495,7 @@ export class LineReplacementView extends Disposable implements IInlineEditsView 
 								left: 0,
 								width: '100%',
 								height: '100%',
-								background: 'var(--vscode-diffEditor-insertedLineBackground)',
-								opacity: '0.5',
+								background: 'var(--vscode-inlineEdit-modifiedChangedLineBackground)',
 							},
 						})
 					]),

@@ -132,6 +132,10 @@
 						border: none;
 					}
 				}
+
+				.monaco-editor-background {
+					background-color: var(--vscode-inlineEdit-modifiedChangedLineBackground)
+				}
 			}
 
 			.inline-edits-view-zone.diagonal-fill {
@@ -216,6 +220,16 @@
 		border-bottom-right-radius: 4px;
 	}
 
+	.inline-edit.ghost-text,
+	.inline-edit.ghost-text-decoration,
+	.inline-edit.ghost-text-decoration-preview,
+	.inline-edit.suggest-preview-text .ghost-text {
+		&.syntax-highlighted {
+			opacity: 1 !important;
+		}
+		background: var(--vscode-inlineEdit-modifiedChangedTextBackground) !important;
+		font-style: normal !important;
+	}
 }
 
 .monaco-menu-option {

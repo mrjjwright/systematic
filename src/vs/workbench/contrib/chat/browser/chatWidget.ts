@@ -38,7 +38,7 @@ import { IThemeService } from '../../../../platform/theme/common/themeService.js
 import { ChatAgentLocation, IChatAgentCommand, IChatAgentData, IChatAgentService, IChatWelcomeMessageContent, isChatWelcomeMessageContent } from '../common/chatAgents.js';
 import { ChatContextKeys } from '../common/chatContextKeys.js';
 import { IChatEditingService, IChatEditingSession, WorkingSetEntryRemovalReason, WorkingSetEntryState } from '../common/chatEditingService.js';
-import { IChatModel, IChatRequestVariableEntry, IChatResponseModel } from '../common/chatModel.js';
+import { ChatPauseState, IChatModel, IChatRequestVariableEntry, IChatResponseModel } from '../common/chatModel.js';
 import { ChatRequestAgentPart, IParsedChatRequest, chatAgentLeader, chatSubcommandLeader, formatChatQuestion } from '../common/chatParserTypes.js';
 import { ChatRequestParser } from '../common/chatRequestParser.js';
 import { IChatFollowup, IChatLocationData, IChatSendRequestOptions, IChatService } from '../common/chatService.js';
@@ -151,6 +151,8 @@ export class ChatWidget extends Disposable implements IChatWidget {
 	private bodyDimension: dom.Dimension | undefined;
 	private visibleChangeCount = 0;
 	private requestInProgress: IContextKey<boolean>;
+	private isRequestPaused: IContextKey<boolean>;
+	private canRequestBePaused: IContextKey<boolean>;
 	private agentInInput: IContextKey<boolean>;
 
 	private _visible = false;
@@ -248,6 +250,8 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		ChatContextKeys.inQuickChat.bindTo(contextKeyService).set(isQuickChat(this));
 		this.agentInInput = ChatContextKeys.inputHasAgent.bindTo(contextKeyService);
 		this.requestInProgress = ChatContextKeys.requestInProgress.bindTo(contextKeyService);
+		this.isRequestPaused = ChatContextKeys.isRequestPaused.bindTo(contextKeyService);
+		this.canRequestBePaused = ChatContextKeys.canRequestBePaused.bindTo(contextKeyService);
 
 		this._codeBlockModelCollection = this._register(instantiationService.createInstance(CodeBlockModelCollection));
 
@@ -567,8 +571,14 @@ export class ChatWidget extends Disposable implements IChatWidget {
 	}
 
 	private renderWelcomeViewContentIfNeeded() {
+		if (this.viewOptions.renderStyle === 'compact' || this.viewOptions.renderStyle === 'minimal') {
+			return;
+		}
+
+		const numItems = this.viewModel?.getItems().length ?? 0;
 		const welcomeContent = this.viewModel?.model.welcomeMessage ?? this.persistedWelcomeMessage;
-		if (welcomeContent && this.welcomeMessageContainer.children.length === 0 && !this.viewOptions.renderStyle) {
+		if (welcomeContent && !numItems && (this.welcomeMessageContainer.children.length === 0 || this.location === ChatAgentLocation.EditingSession)) {
+			dom.clearNode(this.welcomeMessageContainer);
 			const tips = this.viewOptions.supportsAdditionalParticipants
 				? new MarkdownString(localize('chatWidget.tips', "{0} or type {1} to attach context\n\n{2} to chat with extensions\n\nType {3} to use commands", '$(attach)', '#', '$(mention)', '/'), { supportThemeIcons: true })
 				: new MarkdownString(localize('chatWidget.tips.withoutParticipants', "{0} or type {1} to attach context", '$(attach)', '#'), { supportThemeIcons: true });
@@ -580,10 +590,9 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			dom.append(this.welcomeMessageContainer, welcomePart.element);
 		}
 
-		if (!this.viewOptions.renderStyle && this.viewModel) {
-			const treeItems = this.viewModel.getItems();
-			dom.setVisibility(treeItems.length === 0, this.welcomeMessageContainer);
-			dom.setVisibility(treeItems.length !== 0, this.listContainer);
+		if (this.viewModel) {
+			dom.setVisibility(numItems === 0, this.welcomeMessageContainer);
+			dom.setVisibility(numItems !== 0, this.listContainer);
 		}
 	}
 
@@ -848,13 +857,22 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			this.parsedChatRequest = undefined;
 			this.updateChatInputContext();
 		}));
-		this._register(this.chatAgentService.onDidChangeAgents(() => this.parsedChatRequest = undefined));
+		this._register(this.chatAgentService.onDidChangeAgents(() => {
+			this.parsedChatRequest = undefined;
+
+			// Tools agent loads -> welcome content changes
+			this.renderWelcomeViewContentIfNeeded();
+		}));
 	}
 
 	private onDidStyleChange(): void {
 		this.container.style.setProperty('--vscode-interactive-result-editor-background-color', this.editorOptions.configuration.resultEditor.backgroundColor?.toString() ?? '');
 		this.container.style.setProperty('--vscode-interactive-session-foreground', this.editorOptions.configuration.foreground?.toString() ?? '');
 		this.container.style.setProperty('--vscode-chat-list-background', this.themeService.getColorTheme().getColor(this.styles.listBackground)?.toString() ?? '');
+	}
+
+	togglePaused() {
+		this.viewModel?.model.toggleLastRequestPaused();
 	}
 
 	setModel(model: IChatModel, viewState: IChatViewState): void {
@@ -876,6 +894,8 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			}
 
 			this.requestInProgress.set(this.viewModel.requestInProgress);
+			this.isRequestPaused.set(this.viewModel.requestPausibility === ChatPauseState.Paused);
+			this.canRequestBePaused.set(this.viewModel.requestPausibility !== ChatPauseState.NotPausable);
 
 			this.onDidChangeItems();
 			if (events.some(e => e?.kind === 'addRequest') && this.visible) {
@@ -997,7 +1017,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 	}
 
 	private async _acceptInput(query: { query: string } | { prefix: string } | undefined, options?: IChatAcceptInputOptions): Promise<IChatResponseModel | undefined> {
-		if (this.viewModel?.requestInProgress) {
+		if (this.viewModel?.requestInProgress && this.viewModel.requestPausibility !== ChatPauseState.Paused) {
 			return;
 		}
 
@@ -1055,6 +1075,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 				}
 
 				// add prompt instruction references to the attached context, if enabled
+				const promptInstructionUris = new ResourceSet(promptInstructions.chatAttachments.map((v) => v.value) as URI[]);
 				if (instructionsEnabled) {
 					editingSessionAttachedContext
 						.push(...promptInstructions.chatAttachments);
@@ -1073,7 +1094,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 					for (const variable of request.variableData.variables) {
 						if (URI.isUri(variable.value) && variable.isFile && maximumFileEntries > 0) {
 							const uri = variable.value;
-							if (!uniqueWorkingSetEntries.has(uri)) {
+							if (!uniqueWorkingSetEntries.has(uri) && !promptInstructionUris.has(uri)) {
 								editingSessionAttachedContext.push(variable);
 								uniqueWorkingSetEntries.add(variable.value);
 								maximumFileEntries -= 1;
