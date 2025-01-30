@@ -17,6 +17,7 @@ import { IInstantiationService } from '../../../../platform/instantiation/common
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { EditorPaneDescriptor, IEditorPaneRegistry } from '../../../browser/editor.js';
 import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
+import { IFileService } from '../../../../platform/files/common/files.js';
 
 export const IS_TRANSFORMER_ENABLED = new RawContextKey<boolean>('isTransformerEnabled', true);
 export const IS_LINKING_MODE = new RawContextKey<boolean>('isTransformerLinkingMode', false);
@@ -30,6 +31,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		@ILogService private readonly logService: ILogService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@IEditorResolverService private readonly editorResolverService: IEditorResolverService,
+		@IFileService private readonly fileService: IFileService,
 	) {
 		super();
 		contextKeyService.createKey(IS_TRANSFORMER_ENABLED.key, true);
@@ -66,7 +68,6 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 	registerActions(): void {
 		const self = this;
-		// Register action to toggle linking mode
 		registerAction2(class ToggleLinkingModeAction extends Action2 {
 			constructor() {
 				super({
@@ -88,7 +89,6 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			}
 		});
 
-		// Register action to add a new transformation node
 		registerAction2(class AddTransformationNodeAction extends Action2 {
 			constructor() {
 				super({
@@ -122,7 +122,6 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			}
 		});
 
-		// Register commands
 		registerAction2(class CreateTransformerAction extends Action2 {
 			constructor() {
 				super({
@@ -139,6 +138,48 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				await editorService.openEditor({ resource: URI.from({ scheme: 'trans', path: `/transformer.trans` }) });
 			}
 		});
+
+		registerAction2(class ConcatenateFilesAction extends Action2 {
+			constructor() {
+				super({
+					id: 'transformer.concatenateFiles',
+					title: localize2('transformerConcatenateFiles', "Transformer Concatenate Files"),
+					f1: true,
+				});
+			}
+
+			async run(accessor: ServicesAccessor): Promise<string> {
+				const resources = [
+					URI.file('/Users/jjwright/src/systematic/README.md'),
+					URI.file('/Users/jjwright/src/systematic/DESIGN.md')
+				];
+				const result = await self.concatenateFiles(resources);
+				console.log(result);
+				return result;
+			}
+		});
+
+
+	}
+
+	concatenateFiles(resources: URI[]): Promise<string> {
+
+		if (!resources || resources.length < 2) {
+			throw new Error('At least two files must be selected for concatenation');
+		}
+
+		try {
+			const contents = Promise.all(
+				resources.map(async (uri) => {
+					const content = await this.fileService.readFile(uri);
+					return content.value.toString();
+				})
+			);
+
+			return contents.then((values) => values.join('\n'));
+		} catch (error) {
+			throw new Error(`Failed to concatenate files: ${error.message}`);
+		}
 	}
 
 	toggleLinkingMode(): void {
