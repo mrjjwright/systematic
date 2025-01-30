@@ -89,11 +89,12 @@ import { IChatVariablesService } from '../common/chatVariables.js';
 import { IChatResponseViewModel } from '../common/chatViewModel.js';
 import { ChatInputHistoryMaxEntries, IChatHistoryEntry, IChatInputState, IChatWidgetHistoryService } from '../common/chatWidgetHistoryService.js';
 import { ILanguageModelChatMetadataAndIdentifier, ILanguageModelsService } from '../common/languageModels.js';
-import { CancelAction, ChatModelPickerActionId, ChatSubmitAction, ChatSubmitSecondaryAgentAction, IChatExecuteActionContext, ToggleAgentModeActionId } from './actions/chatExecuteActions.js';
+import { CancelAction, ChatModelPickerActionId, ChatSubmitAction, ChatSubmitSecondaryAgentAction, IChatExecuteActionContext, IToggleAgentModeArgs, ToggleAgentModeActionId } from './actions/chatExecuteActions.js';
 import { ImplicitContextAttachmentWidget } from './attachments/implicitContextAttachment.js';
 import { InstructionAttachmentsWidget } from './attachments/instructionsAttachment/instructionAttachments.js';
 import { IChatWidget } from './chat.js';
 import { ChatAttachmentModel, EditsAttachmentModel } from './chatAttachmentModel.js';
+import { toChatVariable } from './chatAttachmentModel/chatInstructionAttachmentsModel.js';
 import { hookUpResourceAttachmentDragAndContextMenu, hookUpSymbolAttachmentDragAndContextMenu } from './chatContentParts/chatAttachmentsContentPart.js';
 import { IDisposableReference } from './chatContentParts/chatCollections.js';
 import { CollapsibleListPool, IChatCollapsibleListItem } from './chatContentParts/chatReferencesContentPart.js';
@@ -193,17 +194,17 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 				continue;
 			}
 
-			for (const childUri of variable.allValidReferencesUris) {
-				contextArr.push({
-					id: variable.id,
-					name: basename(childUri.path),
-					value: childUri,
-					isSelection: false,
-					enabled: true,
-					isFile: true,
-					isDynamic: true,
-				});
-			}
+			// the usual URIs list of prompt instructions is `bottom-up`, therefore
+			// we do the same here - first add all child references to the list
+			contextArr.push(
+				...variable.allValidReferences.map((link) => {
+					return toChatVariable(link, false);
+				}),
+			);
+			// then add the root reference itself
+			contextArr.push(
+				toChatVariable(variable, true),
+			);
 		}
 
 		contextArr
@@ -628,7 +629,9 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 	async acceptInput(isUserQuery?: boolean): Promise<void> {
 		if (isUserQuery) {
 			const userQuery = this._inputEditor.getValue();
-			const entry: IChatHistoryEntry = { text: userQuery, state: this.getInputState() };
+			const inputState = this.getInputState();
+			inputState.chatContextAttachments = inputState.chatContextAttachments?.filter(attachment => !attachment.isImage);
+			const entry: IChatHistoryEntry = { text: userQuery, state: inputState };
 			this.history.replaceLast(entry);
 			this.history.add({ text: '' });
 		}
@@ -1728,7 +1731,7 @@ class ToggleAgentActionViewItem extends MenuEntryActionViewItem {
 				label: localize('chat.agentMode', "Agent"),
 				class: undefined,
 				enabled: true,
-				run: () => this.action.run()
+				run: () => this.action.run({ agentMode: true } satisfies IToggleAgentModeArgs)
 			},
 			{
 				...this.action,
@@ -1737,7 +1740,7 @@ class ToggleAgentActionViewItem extends MenuEntryActionViewItem {
 				class: undefined,
 				enabled: true,
 				checked: !this.action.checked,
-				run: () => this.action.run()
+				run: () => this.action.run({ agentMode: false } satisfies IToggleAgentModeArgs)
 			},
 		];
 	}
@@ -1767,9 +1770,11 @@ class ToggleAgentActionViewItem extends MenuEntryActionViewItem {
 	}
 
 	private _openContextMenu() {
-		this._contextMenuService.showContextMenu({
-			getAnchor: () => this.element!,
-			getActions: () => this.agentStateActions
-		});
+		if (this.action.enabled) {
+			this._contextMenuService.showContextMenu({
+				getAnchor: () => this.element!,
+				getActions: () => this.agentStateActions
+			});
+		}
 	}
 }
