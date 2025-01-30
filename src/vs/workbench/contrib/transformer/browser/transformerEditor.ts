@@ -1,13 +1,15 @@
-import { EditorPane } from '../../../browser/parts/editor/editorPane.js';
-import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
-import { IThemeService } from '../../../../platform/theme/common/themeService.js';
+import { CancellationToken } from '../../../../base/common/cancellation.js';
+import { IEditorOptions } from '../../../../platform/editor/common/editor.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { IStorageService } from '../../../../platform/storage/common/storage.js';
-import { IWorkbenchLayoutService } from '../../../services/layout/browser/layoutService.js';
-import { CancellationToken } from '../../../../base/common/cancellation.js';
+import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
+import { IThemeService } from '../../../../platform/theme/common/themeService.js';
+import { EditorPane } from '../../../browser/parts/editor/editorPane.js';
 import { TreeView } from '../../../browser/parts/views/treeView.js';
-import { ITreeViewDataProvider } from '../../../common/views.js';
-import { TransformerEditorInput, TransformerNode } from './transformerEditorInput.js';
+import { IEditorOpenContext } from '../../../common/editor.js';
+import { ITreeItem, ITreeViewDataProvider, TreeItemCollapsibleState } from '../../../common/views.js';
+import { IEditorGroup } from '../../../services/editor/common/editorGroupsService.js';
+import { TransformerInput } from './transformerInput.js';
 
 export class TransformerEditor extends EditorPane {
 	static readonly ID = 'transformerEditor';
@@ -16,14 +18,15 @@ export class TransformerEditor extends EditorPane {
 	private content: HTMLElement | undefined;
 
 	constructor(
+		group: IEditorGroup,
 		@ITelemetryService telemetryService: ITelemetryService,
 		@IThemeService themeService: IThemeService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@IStorageService storageService: IStorageService,
-		@IWorkbenchLayoutService layoutService: IWorkbenchLayoutService
 	) {
-		super(TransformerEditor.ID, telemetryService, themeService, storageService);
+		super(TransformerEditor.ID, group, telemetryService, themeService, storageService);
 	}
+
 
 	protected createEditor(parent: HTMLElement): void {
 		this.content = document.createElement('div');
@@ -35,24 +38,39 @@ export class TransformerEditor extends EditorPane {
 	}
 
 	private createTreeView(): void {
-		const dataProvider: ITreeViewDataProvider<TransformerNode> = {
-			getChildren: (element?: TransformerNode) => {
+		const dataProvider: ITreeViewDataProvider = {
+			getChildren: async (element?: ITreeItem): Promise<ITreeItem[] | undefined> => {
 				if (!element) {
-					return (this.input as TransformerEditorInput).model.getNodes();
+					return [
+						{
+							handle: 'item1',
+							label: { label: 'Item 1' },
+							collapsibleState: TreeItemCollapsibleState.Expanded
+						},
+						{
+							handle: 'item2',
+							label: { label: 'Item 2' },
+							collapsibleState: TreeItemCollapsibleState.Collapsed
+						}
+					];
 				}
-				return [...element.inputs, ...element.outputs];
+				if (element.handle === 'item1') {
+					return [
+						{
+							handle: 'item1.1',
+							label: { label: 'Item 1.1' },
+							collapsibleState: TreeItemCollapsibleState.None
+						}
+					];
+				}
+				return undefined;
 			},
-			getTreeItem: (element: TransformerNode) => ({
-				id: element.id,
-				label: element.label,
-				collapsibleState: element.inputs.length || element.outputs.length ? 1 : 0
-			})
 		};
 
 		this.treeView = this.instantiationService.createInstance(
 			TreeView,
 			'transformer.treeView',
-			this.content!
+			'Hello World'
 		);
 
 		this.treeView.dataProvider = dataProvider;
@@ -65,7 +83,7 @@ export class TransformerEditor extends EditorPane {
 	}
 
 	override async setInput(
-		input: TransformerEditorInput,
+		input: TransformerInput,
 		options: IEditorOptions | undefined,
 		context: IEditorOpenContext,
 		token: CancellationToken

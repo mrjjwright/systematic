@@ -1,41 +1,30 @@
-import { localize2 } from '../../../../nls.js';
+import { localize, localize2 } from '../../../../nls.js';
 import { Action2, MenuId, registerAction2 } from '../../../../platform/actions/common/actions.js';
 import { RawContextKey, IContextKeyService, IContextKey } from '../../../../platform/contextkey/common/contextkey.js';
-import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../common/contributions.js';
-import { Registry } from '../../../../platform/registry/common/platform.js';
-import { EditorPaneDescriptor, IEditorPaneRegistry } from '../../../browser/editor.js';
 import { TransformerEditor } from './transformerEditor.js';
 import { IQuickInputService, IQuickPickItem } from '../../../../platform/quickinput/common/quickInput.js';
-import { EditorExtensions } from '../../../common/editor.js';
+import { EditorExtensions, IEditorFactoryRegistry } from '../../../common/editor.js';
+import { TransformerInput, TransformerSerializer } from './transformerInput.js';
+import { ServicesAccessor } from '../../../../editor/browser/editorExtensions.js';
+import { IEditorService } from '../../../services/editor/common/editorService.js';
+import { URI } from '../../../../base/common/uri.js';
+import { ActiveEditorContext } from '../../../common/contextkeys.js';
+import { IEditorResolverService, RegisteredEditorPriority } from '../../../services/editor/common/editorResolverService.js';
+import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
+import { Registry } from '../../../../platform/registry/common/platform.js';
+import { EditorPaneDescriptor, IEditorPaneRegistry } from '../../../browser/editor.js';
+import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
 
 // Context keys for transformer states
 export const IS_TRANSFORMER_ENABLED = new RawContextKey<boolean>('isTransformerEnabled', true);
 export const IS_LINKING_MODE = new RawContextKey<boolean>('isTransformerLinkingMode', false);
 
-// Register the custom editor for .trans files
-Registry.as<IEditorPaneRegistry>(EditorExtensions.EditorPane)
-	.registerEditorPane(EditorPaneDescriptor.create(
-		TransformerEditor,
-		TransformerEditor.ID,
-		localize2('transformerEditor', "Transformer Editor")
-	), [{
-		name: localize2('transformer', "Transformer"),
-		extensions: ['trans']
-	}]);
 
-// Register editor
-Registry.as<IEditorPaneRegistry>(EditorExtensions.EditorPane)
-	.registerEditorPane(EditorPaneDescriptor.create(
-		TransformerEditor,
-		TransformerEditor.ID,
-		localize2('transformerEditor', "Transformer Editor")
-	), [{
-		name: localize2('transformer', "Transformer"),
-		extensions: ['transform']
-	}]);
+// Register the custom editor for .trans files
+
 
 export class TransformerContribution extends Disposable implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.transformer';
@@ -45,13 +34,40 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		@IContextKeyService contextKeyService: IContextKeyService,
 		@ILogService private readonly logService: ILogService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
-		@IQuickInputService private readonly quickInputService: IQuickInputService
+		@IEditorResolverService private readonly editorResolverService: IEditorResolverService,
 	) {
 		super();
 		contextKeyService.createKey(IS_TRANSFORMER_ENABLED.key, true);
 		this.linkingModeKey = IS_LINKING_MODE.bindTo(contextKeyService);
 		this.logService.info('Transformer initialized');
 		this.registerActions();
+
+		// Register transformer editor
+		this.editorResolverService.registerEditor(
+			'**/*.trans',
+			{
+				id: TransformerInput.ID,
+				label: localize('transformer.editor.label', "Transformer Editor"),
+				priority: RegisteredEditorPriority.exclusive
+			},
+			{
+				canSupportResource: uri => uri.scheme === 'trans',
+				singlePerResource: true
+			},
+			{
+				createEditorInput: ({ resource }) => {
+					return { editor: this.instantiationService.createInstance(TransformerInput, resource) };
+				}
+			}
+		);
+
+		Registry.as<IEditorPaneRegistry>(EditorExtensions.EditorPane)
+			.registerEditorPane(EditorPaneDescriptor.create(
+				TransformerEditor,
+				TransformerEditor.ID,
+				localize('transformerEditor', "Transformer Editor")
+			), [new SyncDescriptor(TransformerInput)]);
+
 	}
 
 	registerActions(): void {
@@ -85,7 +101,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 					id: 'transformer.addNode',
 					title: localize2('transformerAddNode', "Add Transformation Node"),
 					f1: true,
-					precondition: IActiveEditorContext.isEqualTo(TransformerEditor.ID)
+					precondition: ActiveEditorContext.isEqualTo(TransformerEditor.ID)
 				});
 			}
 
@@ -124,15 +140,9 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 			async run(accessor: ServicesAccessor): Promise<void> {
 				const editorService = accessor.get(IEditorService);
-				const instantiationService = accessor.get(IInstantiationService);
-
-				const input = instantiationService.createInstance(
-					TransformerEditorInput,
-					URI.from({ scheme: 'transformer', path: `/transformer-${Date.now()}.transform` }),
-					undefined
-				);
-
-				await editorService.openEditor(input);
+				// const instantiationService = accessor.get(IInstantiationService);
+				//const input = instantiationService.createInstance(TransformerInput, URI.from({ scheme: 'trans', path: `/transformer-${Date.now()}.trans` }) );
+				await editorService.openEditor({ resource: URI.from({ scheme: 'trans', path: `/transformer-${Date.now()}.trans` }) });
 			}
 		});
 	}
@@ -145,3 +155,4 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 }
 
 registerWorkbenchContribution2(TransformerContribution.ID, TransformerContribution, WorkbenchPhase.BlockRestore);
+Registry.as<IEditorFactoryRegistry>(EditorExtensions.EditorFactory).registerEditorSerializer(TransformerInput.ID, TransformerSerializer);

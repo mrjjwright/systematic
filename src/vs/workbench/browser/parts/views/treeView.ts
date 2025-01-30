@@ -1210,7 +1210,7 @@ class TreeDataSource implements IAsyncDataSource<ITreeItem, ITreeItem> {
 				const batch = this.batch;
 				this.batch = undefined;
 				if (!this.batchPromise) {
-					this.batchPromise = doGetChildrenOrBatch(dataProvider, batch);
+					this.batchPromise = this.withProgress(doGetChildrenOrBatch(dataProvider, batch));
 				}
 				try {
 					const result = await this.batchPromise;

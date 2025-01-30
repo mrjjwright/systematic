@@ -143,3 +143,5 @@ for (let i = 0, n = str.length; i < 10; i++) {
 
 function f(x: number, y: string): void {}
 ```
+
+break it down for me by thinking carefully how to answer this for me, an emerging amateur vscode programmer who has a pretty solid grasp of many fundamentals and a pretty not so solid grasp of many more.
