@@ -4,7 +4,6 @@ import { EditorInput } from '../../../common/editor/editorInput.js';
 import { IFileService } from '../../../../platform/files/common/files.js';
 import { VSBuffer } from '../../../../base/common/buffer.js';
 import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
-import { TransformerEditor } from './transformerEditor.js';
 
 export interface TransformerNode {
 	id: string;

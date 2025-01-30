@@ -14,8 +14,8 @@ import { TransformerInput } from './transformerInput.js';
 export class TransformerEditor extends EditorPane {
 	static readonly ID = 'transformerEditor';
 
-	private treeView: TreeView | undefined;
-	private content: HTMLElement | undefined;
+	private treeView!: TreeView;
+	private content!: HTMLElement;
 
 	constructor(
 		group: IEditorGroup,
@@ -32,8 +32,6 @@ export class TransformerEditor extends EditorPane {
 		this.content = document.createElement('div');
 		this.content.classList.add('transformer-editor');
 		parent.appendChild(this.content);
-
-		// Create tree view
 		this.createTreeView();
 	}
 
@@ -74,6 +72,8 @@ export class TransformerEditor extends EditorPane {
 		);
 
 		this.treeView.dataProvider = dataProvider;
+		this.treeView.setVisibility(true);
+		this.treeView.show(this.content);
 	}
 
 	layout(dimension: any): void {
@@ -89,8 +89,6 @@ export class TransformerEditor extends EditorPane {
 		token: CancellationToken
 	): Promise<void> {
 		await super.setInput(input, options, context, token);
-		if (this.treeView) {
-			this.treeView.refresh();
-		}
+
 	}
 }
