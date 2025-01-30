@@ -256,6 +256,11 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 		return this._followupsHeight;
 	}
 
+	private _editSessionWidgetHeight: number = 0;
+	get editSessionWidgetHeight() {
+		return this._editSessionWidgetHeight;
+	}
+
 	private _inputEditor!: CodeEditorWidget;
 	private _inputEditorElement!: HTMLElement;
 
@@ -1311,8 +1316,6 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 		} else {
 			suggestedFilesInWorkingSetCount = entries.filter(e => e.kind === 'reference' && e.state === WorkingSetEntryState.Suggested).length;
 		}
-		overviewTitle.ariaLabel = overviewTitle.textContent;
-		overviewTitle.tabIndex = 0;
 
 		if (excludedEntries.length > 0) {
 			overviewFileCount.textContent = ' ' + localize('chatEditingSession.excludedFiles', '({0}/{1} files)', this.chatEditingService.editingSessionFileLimit + excludedEntries.length, this.chatEditingService.editingSessionFileLimit);
@@ -1320,6 +1323,9 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 			const fileCount = entries.length - suggestedFilesInWorkingSetCount;
 			overviewFileCount.textContent = ' ' + (fileCount === 1 ? localize('chatEditingSession.oneFile', '(1 file)') : localize('chatEditingSession.manyFiles', '({0} files)', fileCount));
 		}
+
+		overviewTitle.ariaLabel = overviewWorkingSet.textContent + overviewFileCount.textContent;
+		overviewTitle.tabIndex = 0;
 
 		const fileLimitReached = remainingFileEntriesBudget <= 0;
 		overviewFileCount.classList.toggle('file-limit-reached', fileLimitReached);
@@ -1513,6 +1519,7 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 
 		this._inputPartHeight = data.inputPartVerticalPadding + data.followupsHeight + inputEditorHeight + data.inputEditorBorder + data.attachmentsHeight + data.toolbarsHeight + data.chatEditingStateHeight;
 		this._followupsHeight = data.followupsHeight;
+		this._editSessionWidgetHeight = data.chatEditingStateHeight;
 
 		const initialEditorScrollWidth = this._inputEditor.getScrollWidth();
 		const newEditorWidth = width - data.inputPartHorizontalPadding - data.editorBorder - data.inputPartHorizontalPaddingInside - data.toolbarsWidth - data.sideToolbarWidth;
