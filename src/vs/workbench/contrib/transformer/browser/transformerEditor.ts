@@ -12,7 +12,6 @@ import { IEditorGroup } from '../../../services/editor/common/editorGroupsServic
 import { TransformerInput } from './transformerInput.js';
 
 export class TransformerEditor extends EditorPane {
-	static readonly ID = 'transformerEditor';
 
 	private treeView!: TreeView;
 	private content!: HTMLElement;
@@ -24,9 +23,8 @@ export class TransformerEditor extends EditorPane {
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@IStorageService storageService: IStorageService,
 	) {
-		super(TransformerEditor.ID, group, telemetryService, themeService, storageService);
+		super(TransformerInput.EditorID, group, telemetryService, themeService, storageService);
 	}
-
 
 	protected createEditor(parent: HTMLElement): void {
 		this.content = document.createElement('div');

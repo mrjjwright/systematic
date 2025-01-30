@@ -18,13 +18,8 @@ import { Registry } from '../../../../platform/registry/common/platform.js';
 import { EditorPaneDescriptor, IEditorPaneRegistry } from '../../../browser/editor.js';
 import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
 
-// Context keys for transformer states
 export const IS_TRANSFORMER_ENABLED = new RawContextKey<boolean>('isTransformerEnabled', true);
 export const IS_LINKING_MODE = new RawContextKey<boolean>('isTransformerLinkingMode', false);
-
-
-// Register the custom editor for .trans files
-
 
 export class TransformerContribution extends Disposable implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.transformer';
@@ -42,11 +37,10 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		this.logService.info('Transformer initialized');
 		this.registerActions();
 
-		// Register transformer editor
 		this.editorResolverService.registerEditor(
 			'**/*.trans',
 			{
-				id: TransformerInput.ID,
+				id: TransformerInput.EditorID,
 				label: localize('transformer.editor.label', "Transformer Editor"),
 				priority: RegisteredEditorPriority.exclusive
 			},
@@ -64,7 +58,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		Registry.as<IEditorPaneRegistry>(EditorExtensions.EditorPane)
 			.registerEditorPane(EditorPaneDescriptor.create(
 				TransformerEditor,
-				TransformerEditor.ID,
+				TransformerInput.EditorID,
 				localize('transformerEditor', "Transformer Editor")
 			), [new SyncDescriptor(TransformerInput)]);
 
@@ -101,7 +95,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 					id: 'transformer.addNode',
 					title: localize2('transformerAddNode', "Add Transformation Node"),
 					f1: true,
-					precondition: ActiveEditorContext.isEqualTo(TransformerEditor.ID)
+					precondition: ActiveEditorContext.isEqualTo(TransformerInput.EditorID)
 				});
 			}
 
@@ -141,8 +135,8 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			async run(accessor: ServicesAccessor): Promise<void> {
 				const editorService = accessor.get(IEditorService);
 				// const instantiationService = accessor.get(IInstantiationService);
-				//const input = instantiationService.createInstance(TransformerInput, URI.from({ scheme: 'trans', path: `/transformer-${Date.now()}.trans` }) );
-				await editorService.openEditor({ resource: URI.from({ scheme: 'trans', path: `/transformer-${Date.now()}.trans` }) });
+				//const input = instantiationService.createInstance(TransformerInput, URI.from({ scheme: 'trans', path: `/transformer.trans` }) );
+				await editorService.openEditor({ resource: URI.from({ scheme: 'trans', path: `/transformer.trans` }) });
 			}
 		});
 	}
@@ -155,4 +149,4 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 }
 
 registerWorkbenchContribution2(TransformerContribution.ID, TransformerContribution, WorkbenchPhase.BlockRestore);
-Registry.as<IEditorFactoryRegistry>(EditorExtensions.EditorFactory).registerEditorSerializer(TransformerInput.ID, TransformerSerializer);
+Registry.as<IEditorFactoryRegistry>(EditorExtensions.EditorFactory).registerEditorSerializer(TransformerInput.EditorID, TransformerSerializer);

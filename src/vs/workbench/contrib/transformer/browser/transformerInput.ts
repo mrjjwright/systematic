@@ -4,6 +4,7 @@ import { EditorInput } from '../../../common/editor/editorInput.js';
 import { IFileService } from '../../../../platform/files/common/files.js';
 import { VSBuffer } from '../../../../base/common/buffer.js';
 import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
+import { GroupIdentifier, IEditorSerializer, ISaveOptions, IUntypedEditorInput } from '../../../common/editor.js';
 
 export interface TransformerNode {
 	id: string;
@@ -49,7 +50,8 @@ export class TransformerModel {
 }
 
 export class TransformerInput extends EditorInput {
-	static readonly ID = 'workbench.input.transformer';
+	static readonly TypeID: string = 'workbench.input.transformer';
+	static readonly EditorID: string = 'workbench.editor.transformer';
 
 	private readonly _model: TransformerModel;
 
@@ -69,10 +71,10 @@ export class TransformerInput extends EditorInput {
 	}
 
 	override get editorId(): string {
-		return TransformerInput.ID;
+		return TransformerInput.EditorID;
 	}
 
-	override get typeId(): string { return TransformerInput.ID; }
+	override get typeId(): string { return TransformerInput.TypeID; }
 
 	override get resource(): URI { return this.uri; }
 
@@ -83,9 +85,13 @@ export class TransformerInput extends EditorInput {
 	override async revert(): Promise<void> {
 		await this._model.load();
 	}
+
+	override async save(group: GroupIdentifier, options?: ISaveOptions): Promise<EditorInput | IUntypedEditorInput | undefined> {
+		return this;
+	}
 }
 
-export class TransformerSerializer {
+export class TransformerSerializer implements IEditorSerializer {
 	canSerialize(editorInput: TransformerInput): boolean {
 		return true;
 	}
@@ -95,6 +101,6 @@ export class TransformerSerializer {
 	}
 
 	deserialize(instantiationService: IInstantiationService): TransformerInput {
-		return instantiationService.createInstance(new SyncDescriptor(TransformerInput, [URI.from({ scheme: 'trans', path: `/transformer-${Date.now()}.trans` })]));
+		return instantiationService.createInstance(new SyncDescriptor(TransformerInput, [URI.from({ scheme: 'trans', path: `/transformer.trans` })]));
 	}
 }
