@@ -1,5 +1,5 @@
 {
-  "name": "systematic-dev-smoke-test",
+  "name": "transformer-dev-smoke-test",
   "version": "0.1.0",
   "license": "MIT",
   "main": "./src/main.js",

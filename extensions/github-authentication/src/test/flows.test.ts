@@ -137,7 +137,7 @@ suite('getFlows', () => {
 			]
 		},
 		{
-			label: 'Systematic. Local filesystem. GitHub.com',
+			label: 'Transformer. Local filesystem. GitHub.com',
 			query: {
 				extensionHost: ExtensionHost.Local,
 				isSupportedClient: false,
@@ -150,7 +150,7 @@ suite('getFlows', () => {
 			]
 		},
 		{
-			label: 'Systematic. Local filesystem. GitHub Hosted Enterprise',
+			label: 'Transformer. Local filesystem. GitHub Hosted Enterprise',
 			query: {
 				extensionHost: ExtensionHost.Local,
 				isSupportedClient: false,
@@ -163,7 +163,7 @@ suite('getFlows', () => {
 			]
 		},
 		{
-			label: 'Systematic. Local filesystem. GitHub Enterprise Server',
+			label: 'Transformer. Local filesystem. GitHub Enterprise Server',
 			query: {
 				extensionHost: ExtensionHost.Local,
 				isSupportedClient: false,

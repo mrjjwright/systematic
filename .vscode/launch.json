@@ -458,12 +458,12 @@
 			"request": "launch",
 			"name": "Run Unit Tests",
 			"program": "${workspaceFolder}/test/unit/electron/index.js",
-			"runtimeExecutable": "${workspaceFolder}/.build/electron/Systematic.app/Contents/MacOS/Electron",
+			"runtimeExecutable": "${workspaceFolder}/.build/electron/Transformer.app/Contents/MacOS/Electron",
 			"windows": {
-				"runtimeExecutable": "${workspaceFolder}/.build/electron/Systematic.exe"
+				"runtimeExecutable": "${workspaceFolder}/.build/electron/Transformer.exe"
 			},
 			"linux": {
-				"runtimeExecutable": "${workspaceFolder}/.build/electron/systematic"
+				"runtimeExecutable": "${workspaceFolder}/.build/electron/transformer"
 			},
 			"outputCapture": "std",
 			"args": [
@@ -488,12 +488,12 @@
 			"request": "launch",
 			"name": "Run Unit Tests For Current File",
 			"program": "${workspaceFolder}/test/unit/electron/index.js",
-			"runtimeExecutable": "${workspaceFolder}/.build/electron/Systematic.app/Contents/MacOS/Electron",
+			"runtimeExecutable": "${workspaceFolder}/.build/electron/Transformer.app/Contents/MacOS/Electron",
 			"windows": {
-				"runtimeExecutable": "${workspaceFolder}/.build/electron/Systematic.exe"
+				"runtimeExecutable": "${workspaceFolder}/.build/electron/Transformer.exe"
 			},
 			"linux": {
-				"runtimeExecutable": "${workspaceFolder}/.build/electron/systematic"
+				"runtimeExecutable": "${workspaceFolder}/.build/electron/transformer"
 			},
 			"cascadeTerminateToConfigurations": [
 				"Attach to VS Code"
@@ -524,7 +524,7 @@
 			"timeout": 240000,
 			"args": [
 				"-l",
-				"${workspaceFolder}/.build/electron/Systematic.app/Contents/MacOS/Electron"
+				"${workspaceFolder}/.build/electron/Transformer.app/Contents/MacOS/Electron"
 			],
 			"outFiles": [
 				"${cwd}/out/**/*.js"

@@ -55,7 +55,7 @@ fi
 
 # Register yum repository
 # TODO: #229: Enable once the yum repository is signed
-#if [ "@@NAME@@" != "systematic" ]; then
+#if [ "@@NAME@@" != "transformer" ]; then
 #	if [ -d "/etc/yum.repos.d" ]; then
 #		REPO_FILE=/etc/yum.repos.d/@@NAME@@.repo
 #		rm -f $REPO_FILE

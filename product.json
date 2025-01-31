@@ -1,7 +1,7 @@
 {
-	"nameShort": "Systematic",
-	"nameLong": "Systematic",
-	"applicationName": "systematic",
+	"nameShort": "Transformer",
+	"nameLong": "Transformer",
+	"applicationName": "transformer",
 	"dataFolderName": ".vscode-oss",
 	"win32MutexName": "vscodeoss",
 	"licenseName": "MIT",
@@ -25,11 +25,11 @@
 	"win32TunnelServiceMutex": "vscodeoss-tunnelservice",
 	"win32TunnelMutex": "vscodeoss-tunnel",
 	"darwinBundleIdentifier": "com.visualstudio.code.oss",
-	"linuxIconName": "systematic",
+	"linuxIconName": "transformer",
 	"licenseFileName": "LICENSE.txt",
 	"reportIssueUrl": "https://github.com/microsoft/vscode/issues/new",
 	"nodejsRepository": "https://nodejs.org",
-	"urlProtocol": "systematic",
+	"urlProtocol": "transformer",
 	"webviewContentExternalBaseUrlTemplate": "https://{{uuid}}.vscode-cdn.net/insider/ef65ac1ba57f57f2a3961bfe94aa20481caca4c6/out/vs/workbench/contrib/webview/browser/pre/",
 	"builtInExtensions": [
 		{

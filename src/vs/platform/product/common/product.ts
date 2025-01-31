@@ -59,11 +59,11 @@ else {
 	if (Object.keys(product).length === 0) {
 		Object.assign(product, {
 			version: '1.95.0-dev',
-			nameShort: 'Systematic',
-			nameLong: 'Systematic',
-			applicationName: 'systematic',
+			nameShort: 'Transformer',
+			nameLong: 'Transformer',
+			applicationName: 'transformer',
 			dataFolderName: '.vscode-oss',
-			urlProtocol: 'systematic',
+			urlProtocol: 'transformer',
 			reportIssueUrl: 'https://github.com/microsoft/vscode/issues/new',
 			licenseName: 'MIT',
 			licenseUrl: 'https://github.com/microsoft/vscode/blob/main/LICENSE.txt',

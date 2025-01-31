@@ -238,11 +238,11 @@ app.on('ready', () => {
 		return {
 			product: {
 				version: '1.x.y',
-				nameShort: 'Systematic',
-				nameLong: 'Systematic',
-				applicationName: 'systematic',
+				nameShort: 'Transformer',
+				nameLong: 'Transformer',
+				applicationName: 'transformer',
 				dataFolderName: '.vscode-oss',
-				urlProtocol: 'systematic',
+				urlProtocol: 'transformer',
 			}
 		};
 	});

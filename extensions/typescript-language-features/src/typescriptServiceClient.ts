@@ -680,7 +680,7 @@ export default class TypeScriptServiceClient extends Disposable implements IType
 						}
 					}
 				}
-			} else if (['vscode-insiders', 'systematic'].includes(vscode.env.uriScheme)) {
+			} else if (['vscode-insiders', 'transformer'].includes(vscode.env.uriScheme)) {
 				// Prompt after a single restart
 				this.numberRestarts = 0;
 				if (!this._isPromptingAfterCrash) {
