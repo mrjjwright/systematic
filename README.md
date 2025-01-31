@@ -1,89 +1,76 @@
 # Transformer
 
-A native VSCode extension for content transformation workflows, designed for semi-technical users who need to combine, transform and process content in repeatable ways.
+A fork of VSCode designed for semi professional users to create and share shareable personal programs that run in VSCode.
 
 ## Core Concept
 
-Transformer reimagines VSCode's workbench to create a visual programming environment where:
+Transformer reimagines VS Code as a context-controlled automation platform :
 
-- Content transformations are represented as tree structures
-- Each root node represents a sequential step in the workflow
-- Child nodes configure their parent step
-- Data flows naturally from top to bottom
-- Everything runs in native VSCode components
+- **Everything revolves around tracking content before process** - content is tracked via git and this opens up content first workflows that scale safely as modern dev shows
+- **and context** - A sophisticated reactive structured hierarchy of key/value pairs that determine available actions based on everything from what exact file content is in context, to simple boolean, number and text values, to config to keystokes.
+- **Actions transform content and context** - actions are built as VSCode actions but are not functions. Functions take in params and produce output. Actions are functions whose params are automatically calculated from context. Actions can be chained in sequences and then controlled via control flow operators in primitive yet strangely effective and powerful ways that resemble assembly language.
+- **VSCode native UI** - Sophisticated table views, lists, tables, search, files, tasks and more to control and automate
+- **Shareable .trans files** - Package context and or actions as reusable sharable files via git or any other means.
 
-## Key Features
+## Control Viewlet
 
-- **Visual Workflows**: Create transformations using familiar tree views instead of code
-- **Native Interface**: Built entirely on VSCode's native components - no webviews or custom UI
-- **Simple Execution**: Run workflows with a single command, watch progress step by step
-- **Deep Integration**: Leverage VSCode's built-in features like Git integration, search, and extension ecosystem
+The control viewlet sits in the coveted sidebar position and controls Transformer with 3 view panes:
 
-## Core Views
+**Context**
+Hierarchical treeview for managing context:
 
-Transformer provides three main view containers:
+- Drag-and-drop files/resources into context tree
+- Direct edit key/value pairs with type safety
+- Inherit and override values across scopes (maybe by tagging/filtering keys by scopes)
+- Integrated with VS Code's context key system
+- can be re-loaded and saved to trans files and implements VSCode's `IWorkingCopy` interface so that it is backed up and serialized.
 
-### 1. Files (Explorer)
+If a context key is active it should show green.
 
-- Browse and edit transformation files (.transform)
-- Access source content and scripts
-- Manage project resources
+**Actions**
 
-### 2. Run
+Run actions that are enabled automatically based on context. In normal vscode, contributions and extensions register actions once when the contribution runs and might also register some dynamically as things change. VSCode is in general a very dynamic environment.
 
-- Execute transformation workflows
-- Monitor progress
-- View outputs and errors
-- Debug transformations
+Transformer adds actions dynamically and runs them dynamically based on context keys. So that means we can reason about why actions are run and trace and log, actions are only run because at some point a context key (or a combo of them) told them to.
 
-### 3. World
+Context keys can be combined in expressions using a language built into vscode, that does NOT require JS.
 
-- Share transformations with team
-- Version control integration
-- Access shared resources
+So the actions panel lights up actions based on what context keys are active and therefore if an action is running or has run it will be green.
 
-## Use Cases
+**UI**
 
-- Combine multiple content sources into standardized formats
-- Apply consistent transformations across file sets
-- Integrate AI processing steps into content workflows
-- Share repeatable workflows across teams
-- Track and version content transformation processes
+This a place for actions to present UI to interact with the user. The user can build UI via actions like
 
-## Examples
+"UI Clear" - clears the UI pane
+"UI Button" - set a native UI button
+"UI Text" - set native text
 
-A simple text concatenation workflow might look like:
+## Example automation flows
 
-└─ combine-files.transform
-├─ 1. Collect Files
-│  ├─ Source: data/*.txt
-│  └─ Sort: alphabetical
-├─ 2. Concatenate
-│  ├─ Separator: newline
-│  └─ Trim: true
-└─ 3. Save
-└─ Output: combined.txt
+### Hello World
 
-## Architecture
+#### Create the `message` context key:
 
-Transformer is built entirely on VSCode's native components and patterns:
+1. Open the `Context` view pane in the `Control` viewlet
+1. Add a new context key called `message`
+1. Set its value to your desired message (e.g., "Hello World!")
 
-- TreeView for workflow representation
-- Native commands and menus
-- Built-in task system for execution
-- Standard extension activation events
-- No external dependencies or custom UI components
+#### Create the `UI text` action
 
-## Development
+1. Open the `Actions` view pane
+1. Add a `UI text` action
+1. The action will appear as a tree node with a `text` subnode
 
-This extension follows VSCode's contribution model and best practices:
+#### Link context to action:
 
-- Pure TypeScript implementation
-- Native VSCode APIs only
-- Standard extension structure
-- Conventional activation events
-- Test-driven development
+There are 2 main ways to link the "message" context key to the button's text:
 
-## Background
+**Drag and Drop Method**:
 
-Transformer was inspired by the need to create maintainable, shareable content transformation workflows that leverage modern AI and automation while remaining accessible to semi-technical users. It builds on VSCode's mature, battle-tested components to create a powerful yet approachable visual programming environment.
+Find the `message` node in the `Context` view and drag it over the `text` node under the `UI Button` action
+
+or drag the other direction
+
+**Activate Linking Mode**
+
+Linking mode can be activated by typing "=" or selecting the context menu on either node with right click and choosing "Link".
