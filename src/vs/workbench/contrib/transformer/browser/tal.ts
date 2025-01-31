@@ -67,7 +67,7 @@ export class RegisterHelloWorld extends Action2 {
 
 			protected override renderBody(container: HTMLElement): void {
 				super.renderBody(container);
-				container.textContent = 'View 1';
+				container.textContent = 'Context';
 			}
 		}
 
@@ -79,7 +79,7 @@ export class RegisterHelloWorld extends Action2 {
 			protected override renderBody(container: HTMLElement): void {
 				super.renderBody(container);
 
-				container.textContent = 'View 2';
+				container.textContent = 'Actions';
 			}
 		}
 
@@ -91,7 +91,7 @@ export class RegisterHelloWorld extends Action2 {
 			protected override renderBody(container: HTMLElement): void {
 				super.renderBody(container);
 
-				container.textContent = 'View 3';
+				container.textContent = 'UI';
 			}
 		}
 
@@ -120,8 +120,8 @@ export class RegisterHelloWorld extends Action2 {
 		// Register three views that equally share the available vertical space
 		viewsRegistry.registerViews([
 			{
-				id: 'transformer.view1',
-				name: localize2('view1', 'View 1'),
+				id: 'transformer.context',
+				name: localize2('transformer.context', 'Context'),
 				ctorDescriptor: new SyncDescriptor(View1Pane),
 				canToggleVisibility: true,
 				hideByDefault: false,
@@ -129,8 +129,8 @@ export class RegisterHelloWorld extends Action2 {
 				weight: 100,
 			},
 			{
-				id: 'transformer.view2',
-				name: localize2('view2', 'View 2'),
+				id: 'transformer.actions',
+				name: localize2('transformer.actions', 'Actions'),
 				ctorDescriptor: new SyncDescriptor(View2Pane),
 				canToggleVisibility: true,
 				hideByDefault: false,
@@ -138,8 +138,8 @@ export class RegisterHelloWorld extends Action2 {
 				weight: 100
 			},
 			{
-				id: 'transformer.view3',
-				name: localize2('view3', 'View 3'),
+				id: 'transformer.ui',
+				name: localize2('transformer.ui', 'UI'),
 				ctorDescriptor: new SyncDescriptor(View3Pane),
 				canToggleVisibility: true,
 				hideByDefault: false,
