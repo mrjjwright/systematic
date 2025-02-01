@@ -12,6 +12,24 @@ Transformer reimagines VS Code as a context-controlled automation platform :
 - **VSCode native UI** - Sophisticated table views, lists, tables, search, files, tasks and more to control and automate
 - **Shareable .trans files** - Package context and or actions as reusable sharable files via git or any other means.
 
+## Control and Context
+
+Context changes constantly and must be precisely presented to our minds and intelligent assistants.
+
+Computers process information very straightforwardly in ways that CAN be tracked but are often NOT.
+
+Computers are very fast and therefore can change context and information very fast.
+
+VSCode is good at adaptiing to changing context from your computer at virtually every level, it is not scared of change.
+
+However with Transformer we want to organize change into discrete steps that can be reversed, reverted, backedup, synced, and all the suble things, but we want that for free in some proven form.
+
+That form exists with git which underlies Transformer but it also takes careful programming around files. The techniques and patterns needed for that are within VSCode and reused in Transformer, techniques like working copies, which allows VSCode to never lose your work and you don't have to save your files.
+
+More importantly than that is the ability to track and bisect content with context, computing useful intersecting sects of the 2.
+
+E.g. when that view is shown and the user has dropped a new file from their computer, then kick off this action and workflow, which I can inspect and modify straightforwardly as well as share as well as revert most of the changes it makes easily, at least the local ones.
+
 ## Control Viewlet
 
 The control viewlet sits in the coveted sidebar position and controls Transformer with 3 view panes:
