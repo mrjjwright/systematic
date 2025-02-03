@@ -23,7 +23,8 @@ export enum TerminalCompletionItemKind {
 	Folder = 1,
 	Flag = 2,
 	Method = 3,
-	Argument = 4
+	Argument = 4,
+	Alias = 5,
 }
 
 export interface ITerminalCompletion extends ISimpleCompletion {
@@ -339,7 +340,7 @@ export class TerminalCompletionService extends Disposable implements ITerminalCo
 					label,
 					provider,
 					kind,
-					detail: getFriendlyPath(stat.resource, resourceRequestConfig.pathSeparator, TerminalCompletionItemKind.File),
+					detail: getFriendlyPath(stat.resource, resourceRequestConfig.pathSeparator, kind),
 					isDirectory,
 					isFile: kind === TerminalCompletionItemKind.File,
 					replacementIndex: cursorPosition - lastWord.length,
