@@ -1,0 +1,10 @@
+{
+  "context": {
+    "message": "Hello World"
+  },
+  "operations": [{
+    "id": "hello-world",
+    "type": "showDialog",
+    "contextKey": "message"
+  }]
+}
