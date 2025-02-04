@@ -96,7 +96,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			const commandsInPath = await pathExecutableCache.getCommandsInPath(terminal.shellIntegration?.env);
+			const commandsInPath = await pathExecutableCache.getExecutablesInPath(terminal.shellIntegration?.env);
 			const shellGlobals = await getShellGlobals(shellType, commandsInPath?.labels) ?? [];
 			if (!commandsInPath?.completionResources) {
 				return;
@@ -241,6 +241,7 @@ export async function getCompletionItemsFromSpecs(
 
 	const precedingText = terminalContext.commandLine.slice(0, terminalContext.cursorPosition + 1);
 
+	let specificItemsProvided = false;
 	for (const spec of specs) {
 		const specLabels = getLabel(spec);
 
@@ -249,18 +250,21 @@ export async function getCompletionItemsFromSpecs(
 		}
 
 		for (const specLabel of specLabels) {
-			const availableCommand = availableCommands.find(command => command.label === specLabel);
+			const availableCommand = availableCommands.find(command => specLabel === command.label);
 			if (!availableCommand || (token && token.isCancellationRequested)) {
 				continue;
 			}
 
 			// push it to the completion items
 			if (tokenType === TokenType.Command) {
-				items.push(createCompletionItem(terminalContext.cursorPosition, prefix, { label: specLabel }, getDescription(spec), availableCommand.detail));
+				if (availableCommand.kind !== vscode.TerminalCompletionItemKind.Alias) {
+					items.push(createCompletionItem(terminalContext.cursorPosition, prefix, { label: specLabel }, getDescription(spec), availableCommand.detail));
+				}
 				continue;
 			}
 
-			if (!terminalContext.commandLine.startsWith(`${specLabel} `)) {
+			const commandAndAliases = availableCommands.filter(command => specLabel === (command.definitionCommand ?? command.label));
+			if (!commandAndAliases.some(e => terminalContext.commandLine.startsWith(`${e.label} `))) {
 				// the spec label is not the first word in the command line, so do not provide options or args
 				continue;
 			}
@@ -270,6 +274,7 @@ export async function getCompletionItemsFromSpecs(
 				items.push(...argsCompletionResult.items);
 				filesRequested ||= argsCompletionResult.filesRequested;
 				foldersRequested ||= argsCompletionResult.foldersRequested;
+				specificItemsProvided ||= argsCompletionResult.items.length > 0;
 			}
 			if (!argsCompletionResult?.items.length) {
 				// Arg completions are more specific, only get options if those are not provided.
@@ -278,15 +283,13 @@ export async function getCompletionItemsFromSpecs(
 					items.push(...optionsCompletionResult.items);
 					filesRequested ||= optionsCompletionResult.filesRequested;
 					foldersRequested ||= optionsCompletionResult.foldersRequested;
+					specificItemsProvided ||= optionsCompletionResult.items.length > 0;
 				}
 			}
 		}
 	}
 
-	const shouldShowResourceCompletions =
-		(!terminalContext.commandLine.trim() || !items.length) &&
-		!filesRequested &&
-		!foldersRequested;
+
 
 	if (tokenType === TokenType.Command) {
 		// Include builitin/available commands in the results
@@ -296,11 +299,17 @@ export async function getCompletionItemsFromSpecs(
 				items.push(createCompletionItem(terminalContext.cursorPosition, prefix, command, command.detail));
 			}
 		}
-	}
-
-	if (shouldShowResourceCompletions) {
 		filesRequested = true;
 		foldersRequested = true;
+	} else {
+		const shouldShowResourceCompletions =
+			!specificItemsProvided &&
+			!filesRequested &&
+			!foldersRequested;
+		if (shouldShowResourceCompletions) {
+			filesRequested = true;
+			foldersRequested = true;
+		}
 	}
 
 	let cwd: vscode.Uri | undefined;
