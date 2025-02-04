@@ -21,9 +21,12 @@ import { Codicon } from '../../../../base/common/codicons.js';
 import { localize, localize2 } from '../../../../nls.js';
 import { IDialogService } from '../../../../platform/dialogs/common/dialogs.js';
 import { ITestService, IMainThreadTestController } from '../../../../workbench/contrib/testing/common/testService.js';
-import { TestDiffOpType, TestsDiff, ITestItem, TestControllerCapability, TestItemExpandState, ICallProfileRunHandler, IStartControllerTests, IStartControllerTestsResult } from '../../../../workbench/contrib/testing/common/testTypes.js';
+import { TestDiffOpType, TestsDiff, ITestItem, TestControllerCapability, TestItemExpandState, ICallProfileRunHandler, IStartControllerTests, IStartControllerTestsResult, TestRunProfileBitset } from '../../../../workbench/contrib/testing/common/testTypes.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { IObservable, observableValue } from '../../../../base/common/observable.js';
+import { URI } from '../../../../base/common/uri.js';
+import { ITestProfileService } from '../../../../workbench/contrib/testing/common/testProfileService.js';
+import { TestId } from '../../../../workbench/contrib/testing/common/testId.js';
 
 // Operation types for the transformer
 export interface ITransformerOperation {
@@ -116,6 +119,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		@ILogService private readonly logService: ILogService,
 		@ITestService private readonly testService: ITestService,
 		@IDialogService private readonly dialogService: IDialogService,
+		@ITestProfileService private readonly testProfileService: ITestProfileService,
 	) {
 		super();
 		this.contextKeyService = contextKeyService;
@@ -208,19 +212,41 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 				// Add children
 				that.testService.publishDiff(controllerId, operations);
+
+				// Add a run profile for the controller
+				that.testProfileService.addProfile(myController, {
+					controllerId,
+					profileId: 1,
+					label: 'Run Transformer Tests',
+					group: TestRunProfileBitset.Run,
+					hasConfigurationHandler: false,
+					isDefault: true,
+					supportsContinuousRun: false,
+					tag: null
+				});
 			},
 			async refreshTests(token: CancellationToken) {
 				return this.syncTests(token);
 			},
 
 			async runTests(request: IStartControllerTests[], token: CancellationToken): Promise<IStartControllerTestsResult[]> {
+
 				for (const req of request) {
-					if (req.testIds.includes('setContext')) {
-						that.contextKeyService.createKey('message', 'Hello from Transformer!');
-					} else if (req.testIds.includes('showDialog')) {
+					for (const testIdString of req.testIds) {
+						// Get the local ID (part after the delimiter) to check which operation to run
+						const localId = TestId.localId(testIdString);
 						const message = that.contextKeyService.getContextKeyValue<string>('message');
-						if (message) {
-							that.dialogService.info('Message', message);
+
+						switch (localId) {
+							case 'setContext':
+								that.contextKeyService.createKey('message', 'Hello from Transformer!');
+								break;
+
+							case 'showDialog':
+								if (message) {
+									that.dialogService.info('Message', message);
+								}
+								break;
 						}
 					}
 				}
