@@ -1,6 +1,5 @@
-import { Action2, MenuId, registerAction2 } from '../../../../platform/actions/common/actions.js';
 import { RawContextKey, IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
-import { Disposable } from '../../../../base/common/lifecycle.js';
+import { Disposable, IDisposable } from '../../../../base/common/lifecycle.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../common/contributions.js';
 import { ViewPane } from '../../../browser/parts/views/viewPane.js';
@@ -21,32 +20,34 @@ import { registerIcon } from '../../../../platform/theme/common/iconRegistry.js'
 import { Codicon } from '../../../../base/common/codicons.js';
 import { localize, localize2 } from '../../../../nls.js';
 import { IDialogService } from '../../../../platform/dialogs/common/dialogs.js';
-import { ServicesAccessor } from '../../../../editor/browser/editorExtensions.js';
+import { ITestService, IMainThreadTestController } from '../../../../workbench/contrib/testing/common/testService.js';
+import { TestDiffOpType, TestsDiff, ITestItem, TestControllerCapability, TestItemExpandState, ICallProfileRunHandler, IStartControllerTests, IStartControllerTestsResult } from '../../../../workbench/contrib/testing/common/testTypes.js';
+import { CancellationToken } from '../../../../base/common/cancellation.js';
+import { IObservable, observableValue } from '../../../../base/common/observable.js';
+
+// Operation types for the transformer
+export interface ITransformerOperation {
+	id: string;
+	type: 'setContext' | 'showDialog';
+	params: {
+		key?: string;
+		value?: any;
+		message?: string;
+	};
+}
+
+export interface ITransformerRunRequest extends ICallProfileRunHandler {
+	runId: string;
+}
 
 export const IS_TRANSFORMER_ENABLED = new RawContextKey<boolean>('isTransformerEnabled', true);
 export const IS_LINKING_MODE = new RawContextKey<boolean>('isTransformerLinkingMode', false);
 
-class HelloWorldAction extends Action2 {
-	constructor() {
-		super({
-			id: 'transformer.helloWorld',
-			title: localize('transformer.helloWorld', 'Hello World'),
-			menu: {
-				id: MenuId.CommandPalette
-			}
-		});
-	}
-
-	async run(accessor: ServicesAccessor): Promise<void> {
-		const dialogService = accessor.get(IDialogService);
-		const message = 'Hello World';
-		await dialogService.info(message);
-	}
-}
+const testControllerLabel: IObservable<string> = observableValue('transformer.controller.label', 'Transformer Tests');
+const testControllerCapabilities: IObservable<TestControllerCapability> = observableValue('transformer.controller.capabilities', TestControllerCapability.CodeRelatedToTest);
 
 class TransformerViewPaneContainer extends ViewPaneContainer {
 	static ID: string = 'transformer.control.viewlet';
-
 	constructor(
 		@IWorkbenchLayoutService layoutService: IWorkbenchLayoutService,
 		@ITelemetryService telemetryService: ITelemetryService,
@@ -61,9 +62,22 @@ class TransformerViewPaneContainer extends ViewPaneContainer {
 		@IViewDescriptorService viewDescriptorService: IViewDescriptorService,
 		@ILogService logService: ILogService,
 	) {
-		super(TransformerViewPaneContainer.ID, { mergeViewWithContainerWhenSingleView: true }, instantiationService, configurationService, layoutService, contextMenuService, telemetryService, extensionService, themeService, storageService, contextService, viewDescriptorService, logService);
+		super(
+			TransformerViewPaneContainer.ID,
+			{ mergeViewWithContainerWhenSingleView: true },
+			instantiationService,
+			configurationService,
+			layoutService,
+			contextMenuService,
+			telemetryService,
+			extensionService,
+			themeService,
+			storageService,
+			contextService,
+			viewDescriptorService,
+			logService
+		);
 	}
-
 	override create(parent: HTMLElement): void {
 		super.create(parent);
 		parent.classList.add('scm-viewlet');
@@ -72,25 +86,20 @@ class TransformerViewPaneContainer extends ViewPaneContainer {
 
 class View1Pane extends ViewPane {
 	static readonly ID = 'transformer.view1';
-
 	protected override renderBody(container: HTMLElement): void {
 		super.renderBody(container);
 		container.textContent = 'Context';
 	}
 }
-
 class View2Pane extends ViewPane {
 	static readonly ID = 'transformer.view2';
-
 	protected override renderBody(container: HTMLElement): void {
 		super.renderBody(container);
 		container.textContent = 'Actions';
 	}
 }
-
 class View3Pane extends ViewPane {
 	static readonly ID = 'transformer.view3';
-
 	protected override renderBody(container: HTMLElement): void {
 		super.renderBody(container);
 		container.textContent = 'UI';
@@ -99,20 +108,123 @@ class View3Pane extends ViewPane {
 
 export class TransformerContribution extends Disposable implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.transformer';
+	private testControllerRegistration: IDisposable | undefined;
+	private readonly contextKeyService: IContextKeyService;
 
 	constructor(
 		@IContextKeyService contextKeyService: IContextKeyService,
 		@ILogService private readonly logService: ILogService,
+		@ITestService private readonly testService: ITestService,
+		@IDialogService private readonly dialogService: IDialogService,
 	) {
 		super();
+		this.contextKeyService = contextKeyService;
 		contextKeyService.createKey(IS_TRANSFORMER_ENABLED.key, true);
 		this.logService.info('Transformer initialized');
 		this.registerActions();
 		this.registerViewlet();
+		this.registerTestController();
 	}
 
-	registerActions(): void {
-		registerAction2(HelloWorldAction);
+	private registerActions(): void {
+
+	}
+
+	private registerTestController(): void {
+		const controllerId = 'workbench.transformer.testController';
+		const that = this;
+
+		const myController: IMainThreadTestController = {
+			id: controllerId,
+			label: testControllerLabel,
+			capabilities: testControllerCapabilities,
+
+			async syncTests(token: CancellationToken) {
+				const setContextOp: ITestItem = {
+					extId: 'setMessageContext',
+					label: 'Set Message Context',
+					tags: [],
+					busy: false,
+					range: null,
+					uri: undefined,
+					description: 'Sets the message context key',
+					error: null,
+					sortText: null
+				};
+
+				const showDialogOp: ITestItem = {
+					extId: 'showMessageDialog',
+					label: 'Show Message Dialog',
+					tags: [],
+					busy: false,
+					range: null,
+					uri: undefined,
+					description: 'Shows the message in a dialog',
+					error: null,
+					sortText: null
+				};
+
+				const diff: TestsDiff = [
+					{
+						op: TestDiffOpType.Add,
+						item: {
+							controllerId,
+							expand: TestItemExpandState.NotExpandable,
+							item: setContextOp
+						}
+					},
+					{
+						op: TestDiffOpType.Add,
+						item: {
+							controllerId,
+							expand: TestItemExpandState.NotExpandable,
+							item: showDialogOp
+						}
+					}
+				];
+
+				that.testService.publishDiff(controllerId, diff);
+			},
+
+			async refreshTests(token: CancellationToken) {
+				return this.syncTests(token);
+			},
+
+			async runTests(request: IStartControllerTests[], token: CancellationToken): Promise<IStartControllerTestsResult[]> {
+				for (const req of request) {
+					if (req.testIds.includes('setMessageContext')) {
+						that.contextKeyService.createKey('message', 'Hello from Transformer!');
+					} else if (req.testIds.includes('showMessageDialog')) {
+						const message = that.contextKeyService.getContextKeyValue<string>('message');
+						if (message) {
+							that.dialogService.info('Message', message);
+						}
+					}
+				}
+				return [];
+			},
+
+			async expandTest(id: string, levels: number): Promise<void> {
+				// Operations are not expandable
+			},
+
+			configureRunProfile(profileId: number): void {
+				// No profiles needed for now
+			},
+
+			async getRelatedCode(testId: string, token: CancellationToken) {
+				return [];
+			},
+
+			async startContinuousRun(request: IStartControllerTests[], token: CancellationToken): Promise<IStartControllerTestsResult[]> {
+				return this.runTests(request, token);
+			}
+		};
+
+		this.testControllerRegistration = this.testService.registerTestController(controllerId, myController);
+		const ct = CancellationToken.None;
+		myController.syncTests(ct);
+		this._register(this.testControllerRegistration);
 	}
 
 	private registerViewlet(): void {
@@ -120,7 +232,6 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		const viewsRegistry = Registry.as<IViewsRegistry>(Extensions.ViewsRegistry);
 		const transformerViewIcon = registerIcon('transformer-view-icon', Codicon.rocket, localize('transformerViewIcon', 'View icon of the transformer view.'));
 
-		// Register the viewlet (view container)
 		const VIEWLET_ID = 'transformer.control.viewlet';
 		const VIEW_CONTAINER: ViewContainer = viewContainerRegistry.registerViewContainer({
 			id: VIEWLET_ID,
@@ -138,7 +249,6 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			},
 		}, ViewContainerLocation.Sidebar, { isDefault: true });
 
-		// Register three views that equally share the available vertical space
 		viewsRegistry.registerViews([
 			{
 				id: 'transformer.context',
