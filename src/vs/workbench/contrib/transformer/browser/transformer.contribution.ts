@@ -140,37 +140,50 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			capabilities: testControllerCapabilities,
 
 			async syncTests(token: CancellationToken) {
-				const setContextOp: ITestItem = {
-					extId: 'setMessageContext',
-					label: 'Set Message Context',
+
+				// First create root node
+				const rootNode: ITestItem = {
+					extId: controllerId,
+					label: 'Hello World',
 					tags: [],
 					busy: false,
 					range: null,
 					uri: undefined,
-					description: 'Sets the message context key',
+					description: null,
 					error: null,
 					sortText: null
 				};
 
-				const showDialogOp: ITestItem = {
-					extId: 'showMessageDialog',
-					label: 'Show Message Dialog',
-					tags: [],
-					busy: false,
-					range: null,
-					uri: undefined,
-					description: 'Shows the message in a dialog',
-					error: null,
-					sortText: null
-				};
+				// Add root first
+				const rootDiff: TestsDiff = [{
+					op: TestDiffOpType.Add,
+					item: {
+						controllerId,
+						expand: TestItemExpandState.Expanded,
+						item: rootNode
+					}
+				}];
 
-				const diff: TestsDiff = [
+				that.testService.publishDiff(controllerId, rootDiff);
+
+				// Then add operations as children using TestId to join paths
+				const operations: TestsDiff = [
 					{
 						op: TestDiffOpType.Add,
 						item: {
 							controllerId,
 							expand: TestItemExpandState.NotExpandable,
-							item: setContextOp
+							item: {
+								extId: `${controllerId}\0setContext`,
+								label: 'Set Message Context',
+								tags: [],
+								busy: false,
+								range: null,
+								uri: undefined,
+								description: 'Sets the message context key',
+								error: null,
+								sortText: null
+							}
 						}
 					},
 					{
@@ -178,23 +191,33 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 						item: {
 							controllerId,
 							expand: TestItemExpandState.NotExpandable,
-							item: showDialogOp
+							item: {
+								extId: `${controllerId}\0showDialog`,
+								label: 'Show Message Dialog',
+								tags: [],
+								busy: false,
+								range: null,
+								uri: undefined,
+								description: 'Shows a message dialog',
+								error: null,
+								sortText: null
+							}
 						}
 					}
 				];
 
-				that.testService.publishDiff(controllerId, diff);
+				// Add children
+				that.testService.publishDiff(controllerId, operations);
 			},
-
 			async refreshTests(token: CancellationToken) {
 				return this.syncTests(token);
 			},
 
 			async runTests(request: IStartControllerTests[], token: CancellationToken): Promise<IStartControllerTestsResult[]> {
 				for (const req of request) {
-					if (req.testIds.includes('setMessageContext')) {
+					if (req.testIds.includes('setContext')) {
 						that.contextKeyService.createKey('message', 'Hello from Transformer!');
-					} else if (req.testIds.includes('showMessageDialog')) {
+					} else if (req.testIds.includes('showDialog')) {
 						const message = that.contextKeyService.getContextKeyValue<string>('message');
 						if (message) {
 							that.dialogService.info('Message', message);
