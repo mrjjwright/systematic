@@ -12,30 +12,48 @@ Transformer reimagines VS Code as a context-controlled automation platform :
 - **VSCode native UI** - Transformer is built using sophisticated table views, lists, tables, search, files, tasks and more supplied from vscode.
 - **Shareable .trans files** - Programs are saved in *.trans files which drive transformer and are editable in a text file by AI or huamns.  Trans files package context and or operations as reusable sharable files via git or any other means.
 
-## Control and Context
+# Technical Foundation
 
-Context changes constantly and must be precisely presented to our minds and intelligent assistants.
+Content and context are fundamental to how computers process information - they form the building blocks of all software operations. This foundation has several key aspects:
 
-Computers process information very straightforwardly in ways that CAN be tracked but are often NOT.
+- **Content Tracking**: Content changes constantly and must be precisely tracked. While computers can process these changes very quickly, traditional systems often fail to maintain a clear record of what changed and why.
 
-Computers are very fast and therefore can change context and information very fast.
+- **Context Management**: Context goes beyond just file contents - it includes everything from system states to user inputs to program settings. VSCode excels at adapting to changing context at virtually every level of operation.
 
-VSCode is good at adaptiing to changing context from your computer at virtually every level, it is not scared of change.
+- **Discrete Operations**: Transformer organizes all changes into discrete, trackable steps. Each step can be:
+  - Reversed if something goes wrong
+  - Backed up for safety
+  - Synced between users
+  - Merged when collaborating
 
-However with Transformer we want to organize change into discrete steps that can be reversed, reverted, backed up, synced, and all the suble things, but we want that for free in some proven form.
+The solution to managing this complexity lies in the integration between VSCode and git, which together provide several crucial capabilities:
 
-That form exists between VSCode and git which both underly Transformer.
+1. **Smart File Handling**: VSCode's working copy system ensures you never lose work, eliminating the need for manual saving. This system, proven in production use, is leveraged and extended by Transformer.
 
-One key is the careful programming around files. The techniques and patterns needed for that are within VSCode and reused in Transformer, techniques like working copies, which allows VSCode to never lose your work and you don't have to save your files.
+2. **Content Versioning**: Git provides cryptographic content tracking, enabling:
+   - Safe file exchange between users
+   - History tracking with branching
+   - Secure content signing
+   - Lightweight branching and merging
 
-Another key is tracking the content in the files and exchanging them safely with others and branching and merging changes to that content.  This is all brought by git, which cyrpotgraphically hashes and signes the content and tracks it with history and lightweight branching.
+3. **Seamless Integration**: The connection between VSCode and git must be robust and intuitive, especially for semi-professional users who need to exchange content without deep git expertise.
 
-And yet another key is that the integration between VSCode and git needs to be good if we are to have a chance of semi proffesionals actually using git to exchange content.
+# The Bridge to Users
 
-Transformer needs to work for semi professionals and bring together the above concepts and more into very easy to understand concepts for the human user of Transformer, who we want to feel very empowered, coherent, and flowy
+While these technical capabilities are powerful, their primary value lies in making sophisticated development workflows accessible to semi-professional users - people who need to create and automate workflows but aren't full-time developers. These users require powerful tools but often lack deep technical expertise in areas like git operations and content tracking.
 
-So Transformer adds a new viewlet to VSCode to accomplish this.   The most basic viewlet in VSCode is the `Explorer` viewlet which shows a tree of files and folders in the current workspace.  For `Transformer` the most basic viewlet is the `Control` viewlet.
+This creates a specific challenge: How do we expose the power of git-based content tracking and VSCode's technical capabilities while making them approachable? The solution needs to:
 
+- Hide technical complexity while preserving functionality
+- Provide clear visibility into what's happening
+- Make complex operations intuitive
+- Maintain all the benefits of our technical implementation
+
+Visual workflows emerge as the natural solution to this challenge. They provide a familiar way to understand and control complex operations without requiring deep technical knowledge. By presenting git operations, content tracking, and automation through a visual interface, we can make these powerful tools accessible while maintaining their sophistication.
+
+A viewlet is the natural choice for this interface because it integrates seamlessly with VSCode's existing patterns, provides persistent visibility of key controls, and allows users to manage complex operations through familiar tree views, panels, and buttons. This approach leverages VSCode's proven UI patterns while creating a dedicated space for Transformer's unique capabilities.
+
+The goal is for semi-professional users to feel empowered, working with coherent, flowing interfaces that make complex operations feel natural and intuitive. By bringing together VSCode's technical capabilities with git's content tracking in an accessible interface, we create a platform where users can focus on their workflows rather than the underlying technology.
 
 ## `Control` Viewlet
 
@@ -165,47 +183,84 @@ The UI view works closely with other views in the Control viewlet:
 
 This creates a central place where users can interact with your program through familiar, professional-looking interfaces without requiring any web development or design expertise.
 
-# Design
+# Practical Examples
 
-Let's go deeper into the actual user workflows and design how they would flow into and out of Transformer.
+Let's explore how users can create programs in Transformer, starting with a simple example and moving to a more complex real-world scenario.
 
-### Hello World
+## Basic Example: Hello World
 
-Let's say we just wanted 2 operations in our program, one which sets a message and the other one which displays the message using the vscode dialog service.
+First, let's create a simple program that shows a message dialog. This example will demonstrate the basic concepts of operations, parameters, and linking.
 
-#### Add the `Hello World` message context key
+### Step 1: Create a Message Operation
+1. Click the + button in the Program view
+2. Select "context key add" from the quick pick menu
+3. In the Operation view, you'll see two parameters:
+   - Set "key" to "message"
+   - Set "value" to "Hello World!"
 
-1. use the + button at the top of the `Program` view pane which opens a custom quick pick with just operations like `context key add`
-2. a new operation will show up in the `Program` view pane and be selected, you can configure it in the `Operation` view pane.  It will have 2 child nodes for it's parameters, but you edit them in the `Operation` view pane.
-3. set the `key` parameter to `message`
-4. set the `value` parameter to your desired message e.g., "Hello World!"
+### Step 2: Display the Message
+1. Click + again in the Program view
+2. Select "dialog show" from the quick pick menu
+3. In the Operation view, you'll see:
+   - A "text" parameter
+   - A "level" parameter (leave as "Info")
+4. Link the text to your message by either:
+   - Clicking the link icon next to "text" and selecting the message
+   - Pressing "-" with the text parameter focused
+   - Dragging the message parameter onto the text parameter
 
-#### Add the `dialog show` operation:
+Now when you run your program, it will show "Hello World!" in a VSCode dialog.
 
-1.use the + button at the top of the `Program` view pane which opens a custom quick pick with just operations like `ui text`
-2. a new operation will show up in the `Program` view pane and be selected, you can configure it in the `Operation` view pane, and you will see 2 parameters, `text` and `level`
-3. leave the `level` dropdown set to `Info` which means you want the dialog service to show an info dialog
-4. select the link icon next to the `text` parameter and that will activate linking mode.  Select the first operation, `create context key` and then select the `message` parameter node.  Push enter to complete the link.   You will see a link appear in the `text` parameter.
-5. Alernatively you can press `-` while the `text` parameter is focused and that will activate linking mode.
-6. Alernatively without entering linking mode you can drag the parameter nodes of either source or target operation onto the other operation's parameter nodes to link them.
+## Advanced Example: RFP Response Generator
 
+Now let's look at a real-world example: a program created by a program manager to automate RFP (Request for Proposal) responses using AI.
 
+### The Business Need
+- Program manager frequently responds to RFPs
+- Wants to leverage AI for better responses
+- Needs to share the solution with colleagues
+- Has no formal programming background
 
-### RFP
+### Building the Interface
+The program manager created a simple drag-and-drop interface:
 
-In this example, we imagine a more complex scenario:
+1. **Setup the UI**
+   ```
+   ui clear           // Start with a clean slate
+   ui center          // Center all elements
+   ui file upload     // Add upload button
+   ui text            // Add instructions
+   ```
 
-Imagine a program manager that responds to RFPs a lot and have been experimenting with prompts and techniques that get really high quality results and want to share her Transformer program with others.   She thinks it could be a super useful tool across the company but has no formal programming expertise.   The program she has built presents a simple UI in the Transfomer UI pane. It inolves dragging an RFP (from Word doc e.g.) over a view pane that contains a button (where you can also select the file from a dialog).   This kicks off the workflow which ultimately ends in a response.
+2. **Configure Parameters**
+   - Set upload button to accept Word documents
+   - Add instruction text: "Drag and drop an RFP here or click to upload"
+   - Center everything for clean presentation
 
-However what the program manager has discovered is that there are several subtle tricks to make this all work, including a keeping a set of good answers for different categories of answers and letting the AI choose between them.
+### The Workflow
+1. User drops an RFP document
+2. Program extracts text content
+3. AI analyzes the RFP categories
+4. Program selects relevant response templates
+5. AI generates customized response
+6. User reviews and exports final document
 
-She has found that Transformer has identified this as a useful patten that is built in that she can pick from.  It involves a sequence of easy operations that she can view in Transformer that run sequentially.
+### Smart Features
+The program manager discovered several optimizations:
+- Maintaining a library of successful responses
+- Categorizing RFP sections automatically
+- Letting AI choose appropriate response templates
+- Preserving formatting and company style guides
 
-Some of the operations were pretty clear to her, in fact all of them were.  Here is how she had created this.
+This example shows how Transformer enables non-technical users to:
+- Create sophisticated workflows
+- Leverage AI capabilities
+- Build user-friendly interfaces
+- Share automation solutions
 
-First she prepped the UI by clearing it with a `ui clear` operation.    All the operations in Transformer start with a noun or some sobject in usual and then you can auto complete with some cool verbs.  It was easy for her to pick the right tests to add from the Quick pick.  She typed `trans ui c` and that is usually all she had to type.
-
-Once she had cleared the ui, first wanted to center everything in the ui.  She added the operation `ui center` which just means to center what comes next and then `ui file upload button` which put a file upload button in the center of the UI.
-
-Then she added the operation `ui text` which just means to add some text to the UI.  She typed `trans ui t`, saw the operation she wanted, and pushed enter.
-Using the `Operation` view pane, she changed the `text` parameter to `Drag and drop an RFP here or click to upload`
+In both examples, note how Transformer's operation-based approach makes it easy to:
+- Build programs step by step
+- Configure behavior through parameters
+- Connect operations through linking
+- Create interactive interfaces
+- Share solutions with others
