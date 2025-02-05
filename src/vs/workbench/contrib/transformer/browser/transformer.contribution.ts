@@ -24,14 +24,17 @@ import { ITestService, IMainThreadTestController } from '../../../../workbench/c
 import { TestDiffOpType, TestsDiff, ITestItem, TestControllerCapability, TestItemExpandState, ICallProfileRunHandler, IStartControllerTests, IStartControllerTestsResult, TestRunProfileBitset } from '../../../../workbench/contrib/testing/common/testTypes.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { IObservable, observableValue } from '../../../../base/common/observable.js';
-import { URI } from '../../../../base/common/uri.js';
 import { ITestProfileService } from '../../../../workbench/contrib/testing/common/testProfileService.js';
 import { TestId } from '../../../../workbench/contrib/testing/common/testId.js';
 
 // Operation types for the transformer
 export interface ITransformerOperation {
 	id: string;
-	type: 'setContext' | 'showDialog';
+	type: 'setContext'
+	| 'showDialog'
+	| 'uiClear'
+	| 'uiButton'
+	| 'uiText';
 	params: {
 		key?: string;
 		value?: any;
@@ -106,6 +109,14 @@ class View3Pane extends ViewPane {
 	protected override renderBody(container: HTMLElement): void {
 		super.renderBody(container);
 		container.textContent = 'UI';
+	}
+}
+
+class ViewOperationPane extends ViewPane {
+	static readonly ID = 'transformer.operation';
+	protected override renderBody(container: HTMLElement): void {
+		super.renderBody(container);
+		container.textContent = 'Operation';
 	}
 }
 
@@ -213,6 +224,67 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				// Add children
 				that.testService.publishDiff(controllerId, operations);
 
+				// Add more operations
+				const moreOps: TestsDiff = [
+					{
+						op: TestDiffOpType.Add,
+						item: {
+							controllerId,
+							expand: TestItemExpandState.NotExpandable,
+							item: {
+								extId: `${controllerId}\0uiClear`,
+								label: 'UI Clear',
+								tags: [],
+								busy: false,
+								range: null,
+								uri: undefined,
+								description: 'Clears the UI pane',
+								error: null,
+								sortText: null
+							}
+						}
+					},
+					{
+						op: TestDiffOpType.Add,
+						item: {
+							controllerId,
+							expand: TestItemExpandState.NotExpandable,
+							item: {
+								extId: `${controllerId}\0uiText`,
+								label: 'UI Text',
+								tags: [],
+								busy: false,
+								range: null,
+								uri: undefined,
+								description: 'Adds text to the UI pane',
+								error: null,
+								sortText: null
+							}
+						}
+					},
+					{
+						op: TestDiffOpType.Add,
+						item: {
+							controllerId,
+							expand: TestItemExpandState.NotExpandable,
+							item: {
+								extId: `${controllerId}\0uiButton`,
+								label: 'UI Button',
+								tags: [],
+								busy: false,
+								range: null,
+								uri: undefined,
+								description: 'Adds a button to the UI pane',
+								error: null,
+								sortText: null
+							}
+						}
+					}
+				];
+
+				// Publish more operations
+				that.testService.publishDiff(controllerId, moreOps);
+
 				// Add a run profile for the controller
 				that.testProfileService.addProfile(myController, {
 					controllerId,
@@ -235,17 +307,30 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 					for (const testIdString of req.testIds) {
 						// Get the local ID (part after the delimiter) to check which operation to run
 						const localId = TestId.localId(testIdString);
-						const message = that.contextKeyService.getContextKeyValue<string>('message');
 
 						switch (localId) {
 							case 'setContext':
 								that.contextKeyService.createKey('message', 'Hello from Transformer!');
 								break;
 
-							case 'showDialog':
+							case 'showDialog': {
+								const message = that.contextKeyService.getContextKeyValue<string>('message');
 								if (message) {
 									that.dialogService.info('Message', message);
 								}
+								break;
+							}
+
+							case 'uiClear':
+								that.logService.info('UI cleared (placeholder)');
+								break;
+
+							case 'uiText':
+								that.logService.info('UI text added (placeholder)');
+								break;
+
+							case 'uiButton':
+								that.logService.info('UI button added (placeholder)');
 								break;
 						}
 					}
@@ -300,22 +385,31 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 		viewsRegistry.registerViews([
 			{
+				id: 'transformer.program',
+				name: localize2('transformer.program', 'Program'),
+				ctorDescriptor: new SyncDescriptor(View2Pane),
+				canToggleVisibility: true,
+				hideByDefault: false,
+				canMoveView: true,
+				weight: 100
+			},
+			{
+				id: 'transformer.operation',
+				name: localize2('transformer.operation', 'Operation'),
+				ctorDescriptor: new SyncDescriptor(ViewOperationPane),
+				canToggleVisibility: true,
+				hideByDefault: false,
+				canMoveView: true,
+				weight: 99
+			},
+			{
 				id: 'transformer.context',
 				name: localize2('transformer.context', 'Context'),
 				ctorDescriptor: new SyncDescriptor(View1Pane),
 				canToggleVisibility: true,
 				hideByDefault: false,
 				canMoveView: true,
-				weight: 100,
-			},
-			{
-				id: 'transformer.actions',
-				name: localize2('transformer.actions', 'Actions'),
-				ctorDescriptor: new SyncDescriptor(View2Pane),
-				canToggleVisibility: true,
-				hideByDefault: false,
-				canMoveView: true,
-				weight: 100
+				weight: 98,
 			},
 			{
 				id: 'transformer.ui',
@@ -324,7 +418,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				canToggleVisibility: true,
 				hideByDefault: false,
 				canMoveView: true,
-				weight: 100
+				weight: 97
 			},
 		], VIEW_CONTAINER);
 	}
