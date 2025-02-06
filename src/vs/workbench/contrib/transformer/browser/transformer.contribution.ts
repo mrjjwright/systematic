@@ -52,6 +52,12 @@ export interface IOperationLink extends ITransformerLink {
 	targetId: string;      // ID of target operation
 }
 
+// Operation parameter that can be linked
+export interface ITransformerParam {
+	value?: any;
+	link?: ITransformerLink;  // Optional single link for this parameter
+}
+
 // Operation types for the transformer
 export interface ITransformerOperation {
 	id: string;
@@ -61,10 +67,9 @@ export interface ITransformerOperation {
 	| 'uiButton'
 	| 'uiText';
 	params: {
-		key?: string;
-		value?: any;
-		message?: string;
-		links?: (IContextKeyLink | IOperationLink)[];
+		key?: ITransformerParam;
+		value?: ITransformerParam;
+		message?: ITransformerParam;
 	};
 }
 
@@ -212,8 +217,12 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 					id: `${controllerId}\0setContext`,
 					type: 'setContext',
 					params: {
-						key: 'message',
-						value: 'Hello from Transformer!'
+						key: {
+							value: 'Hello from Transformer!'
+						},
+						value: {
+							value: 'Hello from Transformer!'
+						}
 					}
 				};
 
@@ -221,13 +230,15 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 					id: `${controllerId}\0showDialog`,
 					type: 'showDialog',
 					params: {
-						message: '',
-						links: [{
-							type: TransformerLinkType.ContextKey,
-							sourceId: `${controllerId}\0showDialog`,
-							sourceParam: 'message',
-							contextKey: 'message'
-						}]
+						message: {
+							value: '',
+							link: {
+								type: TransformerLinkType.ContextKey,
+								sourceId: `${controllerId}\0showDialog`,
+								sourceParam: 'message',
+								contextKey: 'message'
+							}
+						}
 					}
 				};
 
@@ -365,11 +376,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 							case 'showDialog': {
 								// Check for links in the operation
-								const messageLink = operation?.params.links?.find(
-									(link: ITransformerLink): link is IContextKeyLink =>
-										link.type === TransformerLinkType.ContextKey &&
-										link.sourceParam === 'message'
-								);
+								const messageLink = operation?.params.message?.link as IContextKeyLink;
 
 								let message: string | undefined;
 								if (messageLink) {
