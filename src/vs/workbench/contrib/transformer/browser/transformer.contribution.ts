@@ -25,7 +25,6 @@ import { TestDiffOpType, TestsDiff, ITestItem, TestControllerCapability, TestIte
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { IObservable, observableValue } from '../../../../base/common/observable.js';
 import { ITestProfileService } from '../../../../workbench/contrib/testing/common/testProfileService.js';
-import { TestId } from '../../../../workbench/contrib/testing/common/testId.js';
 
 export const enum TransformerLinkType {
 	ContextKey = 'contextKey',
@@ -59,6 +58,7 @@ export interface ITransformerParam {
 // Operation types for the transformer
 export interface ITransformerOperation {
 	id: string;
+	description: string;
 	type: 'setContext'
 	| 'showDialog'
 	| 'uiClear'
@@ -151,18 +151,16 @@ class ViewOperationPane extends ViewPane {
 export class TransformerContribution extends Disposable implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.transformer';
 	private testControllerRegistration: IDisposable | undefined;
-	private readonly contextKeyService: IContextKeyService;
 	private operations: Map<string, ITransformerOperation> = new Map();
 
 	constructor(
 		@IContextKeyService contextKeyService: IContextKeyService,
 		@ILogService private readonly logService: ILogService,
 		@ITestService private readonly testService: ITestService,
-		@IDialogService private readonly dialogService: IDialogService,
 		@ITestProfileService private readonly testProfileService: ITestProfileService,
+		@IInstantiationService private readonly instantiationService: IInstantiationService,
 	) {
 		super();
-		this.contextKeyService = contextKeyService;
 		contextKeyService.createKey(IS_TRANSFORMER_ENABLED.key, true);
 		this.logService.info('Transformer initialized');
 		this.registerActions();
@@ -187,12 +185,12 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				// First create root node
 				const rootNode: ITestItem = {
 					extId: controllerId,
-					label: 'Hello World',
+					label: 'Hello World Program',
 					tags: [],
 					busy: false,
 					range: null,
 					uri: undefined,
-					description: null,
+					description: 'A simple hello world demo program',
 					error: null,
 					sortText: null
 				};
@@ -209,131 +207,20 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 				that.testService.publishDiff(controllerId, rootDiff);
 
-				// Create and store the operations
-				const setContextOp: ITransformerOperation = {
-					id: `${controllerId}\0setContext`,
-					type: 'setContext',
-					params: [{
-						name: 'key',
-						value: 'message'
-					}, {
-						name: 'value',
-						value: 'Hello from Transformer!'
-					}]
-				};
+				// Store the operations from hello world program
+				for (const operation of helloWorldProgram) {
+					that.addOperation(operation);
+				}
 
-				const showDialogOp: ITransformerOperation = {
-					id: `${controllerId}\0showDialog`,
-					type: 'showDialog',
-					params: [{
-						name: 'message',
-						link: {
-							type: TransformerLinkType.ContextKey,
-							sourceParamName: 'message',
-							targetContextKey: 'message'
-						}
-					}]
-				};
-
-				// Store the operations
-				that.addOperation(setContextOp);
-				that.addOperation(showDialogOp);
-
-				// Then add operations as children using TestId to join paths
-				const operations: TestsDiff = [
-					// Add our Hello World operations first
-					{
-						op: TestDiffOpType.Add,
-						item: {
-							controllerId,
-							expand: TestItemExpandState.NotExpandable,
-							item: {
-								extId: `${controllerId}\0setContext`,
-								label: 'Set Message Context',
-								tags: [],
-								busy: false,
-								range: null,
-								uri: undefined,
-								description: 'Sets the message context key',
-								error: null,
-								sortText: null
-							}
-						}
-					},
-					{
-						op: TestDiffOpType.Add,
-						item: {
-							controllerId,
-							expand: TestItemExpandState.NotExpandable,
-							item: {
-								extId: `${controllerId}\0showDialog`,
-								label: 'Show Message Dialog',
-								tags: [],
-								busy: false,
-								range: null,
-								uri: undefined,
-								description: 'Shows a message dialog using linked message',
-								error: null,
-								sortText: null
-							}
-						}
-					},
-					// Existing UI operations
-					{
-						op: TestDiffOpType.Add,
-						item: {
-							controllerId,
-							expand: TestItemExpandState.NotExpandable,
-							item: {
-								extId: `${controllerId}\0uiClear`,
-								label: 'UI Clear',
-								tags: [],
-								busy: false,
-								range: null,
-								uri: undefined,
-								description: 'Clears the UI pane',
-								error: null,
-								sortText: null
-							}
-						}
-					},
-					{
-						op: TestDiffOpType.Add,
-						item: {
-							controllerId,
-							expand: TestItemExpandState.NotExpandable,
-							item: {
-								extId: `${controllerId}\0uiText`,
-								label: 'UI Text',
-								tags: [],
-								busy: false,
-								range: null,
-								uri: undefined,
-								description: 'Adds text to the UI pane',
-								error: null,
-								sortText: null
-							}
-						}
-					},
-					{
-						op: TestDiffOpType.Add,
-						item: {
-							controllerId,
-							expand: TestItemExpandState.NotExpandable,
-							item: {
-								extId: `${controllerId}\0uiButton`,
-								label: 'UI Button',
-								tags: [],
-								busy: false,
-								range: null,
-								uri: undefined,
-								description: 'Adds a button to the UI pane',
-								error: null,
-								sortText: null
-							}
-						}
+				// Convert operations to test items and add them
+				const operations: TestsDiff = helloWorldProgram.map(operation => ({
+					op: TestDiffOpType.Add,
+					item: {
+						controllerId,
+						expand: TestItemExpandState.NotExpandable,
+						item: operationToTestItem(operation)
 					}
-				];
+				}));
 
 				// Publish operations
 				that.testService.publishDiff(controllerId, operations);
@@ -342,7 +229,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				that.testProfileService.addProfile(myController, {
 					controllerId,
 					profileId: 1,
-					label: 'Run Transformer Tests',
+					label: 'Run Transformer Operations',
 					group: TestRunProfileBitset.Run,
 					hasConfigurationHandler: false,
 					isDefault: true,
@@ -350,6 +237,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 					tag: null
 				});
 			},
+
 			async refreshTests(token: CancellationToken) {
 				return this.syncTests(token);
 			},
@@ -357,55 +245,9 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			async runTests(request: IStartControllerTests[], token: CancellationToken): Promise<IStartControllerTestsResult[]> {
 				for (const req of request) {
 					for (const testIdString of req.testIds) {
-						const localId = TestId.localId(testIdString);
 						const operation = that.getOperation(testIdString);
-
-						switch (localId) {
-							case 'setContext': {
-								// Show input dialog and update context key with result
-								const result = await that.dialogService.input({
-									title: 'Set Message',
-									message: 'Enter a message to store in context',
-									inputs: [{
-										type: 'text',
-										value: 'Hello from Transformer!'
-									}]
-								});
-
-								if (result.confirmed && result.values?.[0]) {
-									that.contextKeyService.createKey('message', result.values[0]);
-								}
-								break;
-							}
-
-							case 'showDialog': {
-								// Check for links in the operation
-								const messageParam = operation?.params.find(p => p.name === 'message');
-								const messageLink = messageParam?.link as IContextKeyLink;
-
-								let message: string | undefined;
-								if (messageLink) {
-									// Get value from linked context key
-									message = that.contextKeyService.getContextKeyValue<string>(messageLink.targetContextKey);
-								}
-
-								if (message) {
-									that.dialogService.info('Message', message);
-								}
-								break;
-							}
-
-							case 'uiClear':
-								that.logService.info('UI cleared (placeholder)');
-								break;
-
-							case 'uiText':
-								that.logService.info('UI text added (placeholder)');
-								break;
-
-							case 'uiButton':
-								that.logService.info('UI button added (placeholder)');
-								break;
+						if (operation) {
+							that.instantiationService.invokeFunction(accessor => runOperation(accessor, operation));
 						}
 					}
 				}
@@ -561,6 +403,12 @@ export function resolveParams(accessor: ServicesAccessor, operation: ITransforme
 	});
 }
 
+/**
+ * Runs an operation after resolving parameters
+ * @param accessor The services accessor
+ * @param operation The operation definition
+ * @returns A promise that resolves to the operation result
+ */
 export async function runOperation(accessor: ServicesAccessor, operation: ITransformerOperation) {
 	const resolvedParams = resolveParams(accessor, operation);
 
@@ -569,11 +417,25 @@ export async function runOperation(accessor: ServicesAccessor, operation: ITrans
 	return impl(accessor, operation, resolvedParams);
 }
 
+export function operationToTestItem(operation: ITransformerOperation): ITestItem {
+	return {
+		extId: operation.id,
+		label: operation.type,
+		tags: [],
+		busy: false,
+		range: null,
+		uri: undefined,
+		description: operation.description,
+		error: null,
+		sortText: null
+	};
+}
 
 // a little hello world program
 export const helloWorldProgram: ITransformerOperation[] = [
 	{
 		id: 'setContext',
+		description: 'Sets a welcome message in context',
 		type: OPERATION_SET_CONTEXT,
 		params: [{
 			name: 'key',
@@ -585,6 +447,7 @@ export const helloWorldProgram: ITransformerOperation[] = [
 	},
 	{
 		id: 'showDialog',
+		description: 'Shows the welcome message in a dialog',
 		type: OPERATION_SHOW_DIALOG,
 		params: [{
 			name: 'text',
