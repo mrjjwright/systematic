@@ -27,35 +27,33 @@ import { IObservable, observableValue } from '../../../../base/common/observable
 import { ITestProfileService } from '../../../../workbench/contrib/testing/common/testProfileService.js';
 import { TestId } from '../../../../workbench/contrib/testing/common/testId.js';
 
-// Link types
 export const enum TransformerLinkType {
 	ContextKey = 'contextKey',
 	Operation = 'operation'
 }
 
-// Base interface for all link types
 export interface ITransformerLink {
 	type: TransformerLinkType;
-	sourceId: string;      // ID of source operation
-	sourceParam: string;   // Parameter name in source operation
+	sourceParamName: string;
 }
 
 // Specific link type for context keys
 export interface IContextKeyLink extends ITransformerLink {
 	type: TransformerLinkType.ContextKey;
-	contextKey: string;    // Name of the context key
+	targetContextKey: string;
 }
 
 // Specific link type for operation jumps
 export interface IOperationLink extends ITransformerLink {
 	type: TransformerLinkType.Operation;
-	targetId: string;      // ID of target operation
+	targetOperationId: string;
 }
 
 // Operation parameter that can be linked
 export interface ITransformerParam {
+	name: string;
 	value?: any;
-	link?: ITransformerLink;  // Optional single link for this parameter
+	link?: IContextKeyLink | IOperationLink;  // Optional single link for this parameter
 }
 
 // Operation types for the transformer
@@ -66,11 +64,7 @@ export interface ITransformerOperation {
 	| 'uiClear'
 	| 'uiButton'
 	| 'uiText';
-	params: {
-		key?: ITransformerParam;
-		value?: ITransformerParam;
-		message?: ITransformerParam;
-	};
+	params: ITransformerParam[];
 }
 
 export interface ITransformerRunRequest extends ICallProfileRunHandler {
@@ -216,30 +210,26 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				const setContextOp: ITransformerOperation = {
 					id: `${controllerId}\0setContext`,
 					type: 'setContext',
-					params: {
-						key: {
-							value: 'Hello from Transformer!'
-						},
-						value: {
-							value: 'Hello from Transformer!'
-						}
-					}
+					params: [{
+						name: 'key',
+						value: 'message'
+					}, {
+						name: 'value',
+						value: 'Hello from Transformer!'
+					}]
 				};
 
 				const showDialogOp: ITransformerOperation = {
 					id: `${controllerId}\0showDialog`,
 					type: 'showDialog',
-					params: {
-						message: {
-							value: '',
-							link: {
-								type: TransformerLinkType.ContextKey,
-								sourceId: `${controllerId}\0showDialog`,
-								sourceParam: 'message',
-								contextKey: 'message'
-							}
+					params: [{
+						name: 'message',
+						link: {
+							type: TransformerLinkType.ContextKey,
+							sourceParamName: 'message',
+							targetContextKey: 'message'
 						}
-					}
+					}]
 				};
 
 				// Store the operations
@@ -369,19 +359,31 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 						switch (localId) {
 							case 'setContext': {
-								// Create message context key
-								that.contextKeyService.createKey('message', 'Hello from Transformer!');
+								// Show input dialog and update context key with result
+								const result = await that.dialogService.input({
+									title: 'Set Message',
+									message: 'Enter a message to store in context',
+									inputs: [{
+										type: 'text',
+										value: 'Hello from Transformer!'
+									}]
+								});
+
+								if (result.confirmed && result.values?.[0]) {
+									that.contextKeyService.createKey('message', result.values[0]);
+								}
 								break;
 							}
 
 							case 'showDialog': {
 								// Check for links in the operation
-								const messageLink = operation?.params.message?.link as IContextKeyLink;
+								const messageParam = operation?.params.find(p => p.name === 'message');
+								const messageLink = messageParam?.link as IContextKeyLink;
 
 								let message: string | undefined;
 								if (messageLink) {
 									// Get value from linked context key
-									message = that.contextKeyService.getContextKeyValue<string>(messageLink.contextKey);
+									message = that.contextKeyService.getContextKeyValue<string>(messageLink.targetContextKey);
 								}
 
 								if (message) {
