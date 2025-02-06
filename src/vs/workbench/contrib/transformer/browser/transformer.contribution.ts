@@ -25,6 +25,7 @@ import { TestDiffOpType, TestsDiff, ITestItem, TestControllerCapability, TestIte
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { IObservable, observableValue } from '../../../../base/common/observable.js';
 import { ITestProfileService } from '../../../../workbench/contrib/testing/common/testProfileService.js';
+import { TestIdPathParts } from '../../testing/common/testId.js';
 
 export const enum TransformerLinkType {
 	ContextKey = 'contextKey',
@@ -57,7 +58,7 @@ export interface ITransformerParam {
 
 // Operation types for the transformer
 export interface ITransformerOperation {
-	id: string;
+	extId: string;
 	description: string;
 	type: 'setContext'
 	| 'showDialog'
@@ -73,6 +74,59 @@ export interface ITransformerRunRequest extends ICallProfileRunHandler {
 
 export type IOperationImpl = (accessor: ServicesAccessor, operation: ITransformerOperation, params: ITransformerParam[]) => Promise<void>;
 
+// Add new interfaces for operation registry
+export interface IOperationDefinition {
+	id: string;
+	description: string;
+	type: string;
+	parameterSchema: {
+		type: 'string' | 'boolean' | 'number';
+		name: string;
+		description: string;
+		required: boolean;
+		defaultValue?: any;
+	}[];
+	impl: IOperationImpl;
+	validateParams?: (params: ITransformerParam[]) => string | undefined;
+}
+
+export class OperationRegistry {
+	private readonly _operations = new Map<string, IOperationDefinition>();
+
+	registerOperation(def: IOperationDefinition): void {
+		if (this._operations.has(def.id)) {
+			throw new Error(`Operation ${def.id} already registered`);
+		}
+
+		for (const param of def.parameterSchema) {
+			if (!param.name || !param.type) {
+				throw new Error(`Invalid parameter schema in operation ${def.id}`);
+			}
+		}
+
+		this._operations.set(def.id, def);
+	}
+
+	getOperation(id: string): IOperationDefinition | undefined {
+		return this._operations.get(id);
+	}
+
+	validateOperation(op: ITransformerOperation): string | undefined {
+		const def = this._operations.get(op.type);
+		if (!def) { return `Unknown operation type: ${op.type}`; }
+
+		for (const paramDef of def.parameterSchema) {
+			if (paramDef.required) {
+				const param = op.params.find(p => p.name === paramDef.name);
+				if (!param) {
+					return `Missing required parameter: ${paramDef.name}`;
+				}
+			}
+		}
+
+		return def.validateParams?.(op.params);
+	}
+}
 
 export const IS_TRANSFORMER_ENABLED = new RawContextKey<boolean>('isTransformerEnabled', true);
 export const IS_LINKING_MODE = new RawContextKey<boolean>('isTransformerLinkingMode', false);
@@ -152,6 +206,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 	static readonly ID = 'workbench.contrib.transformer';
 	private testControllerRegistration: IDisposable | undefined;
 	private operations: Map<string, ITransformerOperation> = new Map();
+	private readonly operationRegistry = new OperationRegistry();
 
 	constructor(
 		@IContextKeyService contextKeyService: IContextKeyService,
@@ -166,6 +221,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		this.registerActions();
 		this.registerViewlet();
 		this.registerTestController();
+		this.registerOperations();
 	}
 
 	private registerActions(): void {
@@ -207,6 +263,8 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 				that.testService.publishDiff(controllerId, rootDiff);
 
+				const helloWorldProgram = createHelloWorldProgram(controllerId);
+
 				// Store the operations from hello world program
 				for (const operation of helloWorldProgram) {
 					that.addOperation(operation);
@@ -247,7 +305,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 					for (const testIdString of req.testIds) {
 						const operation = that.getOperation(testIdString);
 						if (operation) {
-							that.instantiationService.invokeFunction(accessor => runOperation(accessor, operation));
+							that.instantiationService.invokeFunction(accessor => runOperation(accessor, that.operationRegistry, operation));
 						}
 					}
 				}
@@ -346,7 +404,48 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 	// Add helper to store operations
 	private addOperation(operation: ITransformerOperation): void {
-		this.operations.set(operation.id, operation);
+		this.operations.set(operation.extId, operation);
+	}
+
+	private registerOperations(): void {
+		// Register show dialog operation
+		this.operationRegistry.registerOperation({
+			id: OPERATION_SHOW_DIALOG,
+			type: 'showDialog',
+			description: 'Shows a dialog to the user',
+			parameterSchema: [{
+				type: 'string',
+				name: 'text',
+				description: 'Message to show',
+				required: true
+			}, {
+				type: 'string',
+				name: 'level',
+				description: 'Dialog level',
+				required: false,
+				defaultValue: 'Info'
+			}],
+			impl: showDialogImpl
+		});
+
+		// Register set context operation
+		this.operationRegistry.registerOperation({
+			id: OPERATION_SET_CONTEXT,
+			type: 'setContext',
+			description: 'Sets a context key value',
+			parameterSchema: [{
+				type: 'string',
+				name: 'key',
+				description: 'Context key name',
+				required: true
+			}, {
+				type: 'string',
+				name: 'value',
+				description: 'Context key value',
+				required: true
+			}],
+			impl: setContextImpl
+		});
 	}
 
 }
@@ -406,20 +505,32 @@ export function resolveParams(accessor: ServicesAccessor, operation: ITransforme
 /**
  * Runs an operation after resolving parameters
  * @param accessor The services accessor
+ * @param registry The operation registry
  * @param operation The operation definition
  * @returns A promise that resolves to the operation result
  */
-export async function runOperation(accessor: ServicesAccessor, operation: ITransformerOperation) {
-	const resolvedParams = resolveParams(accessor, operation);
+export async function runOperation(
+	accessor: ServicesAccessor,
+	registry: OperationRegistry,
+	operation: ITransformerOperation
+) {
+	const def = registry.getOperation(operation.type);
+	if (!def) {
+		throw new Error(`Unknown operation type: ${operation.type}`);
+	}
 
-	const impl = someOperationImpls.get(operation.type);
-	if (!impl) { throw new Error(`Unknown operation type: ${operation.type}`); }
-	return impl(accessor, operation, resolvedParams);
+	const error = registry.validateOperation(operation);
+	if (error) {
+		throw new Error(`Invalid operation: ${error}`);
+	}
+
+	const resolvedParams = resolveParams(accessor, operation);
+	return def.impl(accessor, operation, resolvedParams);
 }
 
 export function operationToTestItem(operation: ITransformerOperation): ITestItem {
 	return {
-		extId: operation.id,
+		extId: operation.extId,
 		label: operation.type,
 		tags: [],
 		busy: false,
@@ -431,34 +542,39 @@ export function operationToTestItem(operation: ITransformerOperation): ITestItem
 	};
 }
 
-// a little hello world program
-export const helloWorldProgram: ITransformerOperation[] = [
-	{
-		id: 'setContext',
-		description: 'Sets a welcome message in context',
-		type: OPERATION_SET_CONTEXT,
-		params: [{
-			name: 'key',
-			value: 'message'
-		}, {
-			name: 'value',
-			value: 'Hello from Transformer!'
-		}]
-	},
-	{
-		id: 'showDialog',
-		description: 'Shows the welcome message in a dialog',
-		type: OPERATION_SHOW_DIALOG,
-		params: [{
-			name: 'text',
-			link: {
-				type: TransformerLinkType.ContextKey,
-				sourceParamName: 'text',
-				targetContextKey: 'message'
-			}
-		}, {
-			name: 'level',
-			value: 'Info'
-		}]
-	}
-];
+export function createHelloWorldProgram(controllerId: string) {
+
+
+	const helloWorldProgram: ITransformerOperation[] = [
+		{
+			extId: `${controllerId}${TestIdPathParts.Delimiter}setContext`,
+			description: 'Sets a welcome message in context',
+			type: OPERATION_SET_CONTEXT,
+			params: [{
+				name: 'key',
+				value: 'message'
+			}, {
+				name: 'value',
+				value: 'Hello from Transformer!'
+			}]
+		},
+		{
+			extId: `${controllerId}${TestIdPathParts.Delimiter}showDialog`,
+			description: 'Shows the welcome message in a dialog',
+			type: OPERATION_SHOW_DIALOG,
+			params: [{
+				name: 'text',
+				link: {
+					type: TransformerLinkType.ContextKey,
+					sourceParamName: 'text',
+					targetContextKey: 'message'
+				}
+			}, {
+				name: 'level',
+				value: 'Info'
+			}]
+		}
+	];
+
+	return helloWorldProgram;
+}
