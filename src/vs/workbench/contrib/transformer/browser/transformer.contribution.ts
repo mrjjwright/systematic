@@ -8,7 +8,7 @@ import { IWorkbenchLayoutService } from '../../../services/layout/browser/layout
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
-import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
+import { IInstantiationService, ServicesAccessor } from '../../../../platform/instantiation/common/instantiation.js';
 import { IStorageService } from '../../../../platform/storage/common/storage.js';
 import { IThemeService } from '../../../../platform/theme/common/themeService.js';
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
@@ -53,7 +53,7 @@ export interface IOperationLink extends ITransformerLink {
 export interface ITransformerParam {
 	name: string;
 	value?: any;
-	link?: IContextKeyLink | IOperationLink;  // Optional single link for this parameter
+	link?: IContextKeyLink | IOperationLink;
 }
 
 // Operation types for the transformer
@@ -70,6 +70,9 @@ export interface ITransformerOperation {
 export interface ITransformerRunRequest extends ICallProfileRunHandler {
 	runId: string;
 }
+
+export type IOperationImpl = (accessor: ServicesAccessor, operation: ITransformerOperation, params: ITransformerParam[]) => Promise<void>;
+
 
 export const IS_TRANSFORMER_ENABLED = new RawContextKey<boolean>('isTransformerEnabled', true);
 export const IS_LINKING_MODE = new RawContextKey<boolean>('isTransformerLinkingMode', false);
@@ -503,6 +506,96 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 	private addOperation(operation: ITransformerOperation): void {
 		this.operations.set(operation.id, operation);
 	}
+
 }
 
 registerWorkbenchContribution2(TransformerContribution.ID, TransformerContribution, WorkbenchPhase.BlockRestore);
+
+
+// operation ids
+export const OPERATION_SET_CONTEXT = 'setContext';
+export const OPERATION_SHOW_DIALOG = 'showDialog';
+
+// operation implementations
+
+const someOperationImpls: Map<string, IOperationImpl> = new Map();
+
+const showDialogImpl: IOperationImpl = async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
+	const dialogService = accessor.get(IDialogService);
+	const text = params.find(p => p.name === 'text')?.value;
+	const level = params.find(p => p.name === 'level')?.value ?? 'Info';
+
+	if (!text) { throw new Error('Missing text parameter'); }
+	return dialogService.info(level, text);
+};
+
+
+const setContextImpl: IOperationImpl = async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
+	const contextKeyService = accessor.get(IContextKeyService);
+	const key = params.find(p => p.name === 'key')?.value;
+	const value = params.find(p => p.name === 'value')?.value;
+
+	if (!key) { throw new Error('Missing key parameter'); }
+	contextKeyService.createKey(key, value);
+};
+
+someOperationImpls.set(OPERATION_SET_CONTEXT, setContextImpl);
+someOperationImpls.set(OPERATION_SHOW_DIALOG, showDialogImpl);
+
+/**
+ * Resolves parameters for an operation by evaluating any linked context keys
+ * @param operation The operation definition containing type and parameters
+ * @returns An array of resolved parameters with linked values populated
+ */
+export function resolveParams(accessor: ServicesAccessor, operation: ITransformerOperation) {
+	const contextKeyService = accessor.get(IContextKeyService);
+
+	return operation.params.map(param => {
+		if (param.link?.type === TransformerLinkType.ContextKey) {
+			return {
+				...param,
+				value: contextKeyService.getContextKeyValue(param.link.targetContextKey)
+			};
+		}
+		return param;
+	});
+}
+
+export async function runOperation(accessor: ServicesAccessor, operation: ITransformerOperation) {
+	const resolvedParams = resolveParams(accessor, operation);
+
+	const impl = someOperationImpls.get(operation.type);
+	if (!impl) { throw new Error(`Unknown operation type: ${operation.type}`); }
+	return impl(accessor, operation, resolvedParams);
+}
+
+
+// a little hello world program
+export const helloWorldProgram: ITransformerOperation[] = [
+	{
+		id: 'setContext',
+		type: OPERATION_SET_CONTEXT,
+		params: [{
+			name: 'key',
+			value: 'message'
+		}, {
+			name: 'value',
+			value: 'Hello from Transformer!'
+		}]
+	},
+	{
+		id: 'showDialog',
+		type: OPERATION_SHOW_DIALOG,
+		params: [{
+			name: 'text',
+			link: {
+				type: TransformerLinkType.ContextKey,
+				sourceParamName: 'text',
+				targetContextKey: 'message'
+			}
+		}, {
+			name: 'level',
+			value: 'Info'
+		}]
+	}
+];

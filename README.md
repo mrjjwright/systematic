@@ -223,7 +223,7 @@ Let's explore how users can create programs in Transformer, starting with a simp
 
 First, let's create a simple program that shows a message dialog. This example will demonstrate the basic concepts of operations, parameters, and linking.
 
-### Step 1: create a `message` context key
+### Operation 1: create a `message` context key
 
 1. Click the + button in the Program view
 2. Select "context key add" from the quick pick menu
@@ -231,19 +231,17 @@ First, let's create a simple program that shows a message dialog. This example w
    - Set `key` to "message"
    - Set `value` to "Hello World!"
 
-### Step 2: show the message in a dialog
+### Operation 2: show the message in a dialog
 1. Click + again in the `Program` view
 2. Select "dialog show" from the quick pick menu
 3. In the `Operation` view, you'll see:
    - A `text` parameter
    - A `level` parameter (leave as `Info`)
-4. Link the dialog `text` parameter to your `message` context key by either:
-   - Clicking the link icon next to `text` to activate linking mode.  You should see a special box around the parameter and the interface should have other cues that you are in linking mode.
-   - Pressing "=" with the text parameter focused, which also activates linking mode.
-   - Once in linking mode, you can select the `message` context key from the context view and push either `Enter` or click the link icon, which has now becomes a `Link` button to complete the link.
-   - Alternatively, without entering linking mode , the user can drag the message parameter onto the text parameter, or vice versa, to complete the link.
+4. Link the dialog `text` parameter to your `message` context key by right clicking on the `text` parameter and selecting "Link to context key" submenu where you can select the `message` context key.
 
-The Program operation parameters should now indicate the link visually somehow.   Selecting the parameter, should highlight the context key and show the link. Selecting the context key's context menu should reveal a submenu of operations that depend on the context key.
+The Program operation parameters should now indicate the link visually somehow.   Selecting the parameter, should highlight the context key and show the link.
+
+Also note that selecting the context key's context menu should reveal a submenu list of operations that depend on the context key for reverse references from context keys to operations.
 
 Now when you run your program, it will show "Hello World!" in a VSCode dialog.
 
