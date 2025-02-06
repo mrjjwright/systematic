@@ -207,7 +207,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 				that.testService.publishDiff(controllerId, rootDiff);
 
-				// Add sample operations with links
+				// Create and store the operations
 				const setContextOp: ITransformerOperation = {
 					id: `${controllerId}\0setContext`,
 					type: 'setContext',
@@ -237,6 +237,44 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 				// Then add operations as children using TestId to join paths
 				const operations: TestsDiff = [
+					// Add our Hello World operations first
+					{
+						op: TestDiffOpType.Add,
+						item: {
+							controllerId,
+							expand: TestItemExpandState.NotExpandable,
+							item: {
+								extId: `${controllerId}\0setContext`,
+								label: 'Set Message Context',
+								tags: [],
+								busy: false,
+								range: null,
+								uri: undefined,
+								description: 'Sets the message context key',
+								error: null,
+								sortText: null
+							}
+						}
+					},
+					{
+						op: TestDiffOpType.Add,
+						item: {
+							controllerId,
+							expand: TestItemExpandState.NotExpandable,
+							item: {
+								extId: `${controllerId}\0showDialog`,
+								label: 'Show Message Dialog',
+								tags: [],
+								busy: false,
+								range: null,
+								uri: undefined,
+								description: 'Shows a message dialog using linked message',
+								error: null,
+								sortText: null
+							}
+						}
+					},
+					// Existing UI operations
 					{
 						op: TestDiffOpType.Add,
 						item: {
@@ -293,7 +331,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 					}
 				];
 
-				// Publish more operations
+				// Publish operations
 				that.testService.publishDiff(controllerId, operations);
 
 				// Add a run profile for the controller
