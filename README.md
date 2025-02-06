@@ -12,54 +12,106 @@ Transformer reimagines VS Code as a context-controlled automation platform :
 - **VSCode native UI** - Transformer is built using sophisticated table views, lists, tables, search, files, tasks and more supplied from vscode.
 - **Shareable .trans files** - Programs are saved in *.trans files which drive transformer and are editable in a text file by AI or huamns.  Trans files package context and or operations as reusable sharable files via git or any other means.
 
-## Control and Context
+# Technical Foundation
 
-Context changes constantly and must be precisely presented to our minds and intelligent assistants.
+Content and context are fundamental to how computers process information - they form the building blocks of all software operations. This foundation has several key aspects:
 
-Computers process information very straightforwardly in ways that CAN be tracked but are often NOT.
+- **Content Tracking**: Content changes constantly and must be precisely tracked. While computers can process these changes very quickly, traditional systems often fail to maintain a clear record of what changed and why.
 
-Computers are very fast and therefore can change context and information very fast.
+- **Context Management**: Context goes beyond just file contents - it includes everything from system states to user inputs to program settings. Complexity on the computer crosses several layers and hundreds of interconnected code pieces in order to provide the sophistatated experiences users expect from modern computers and AI.
 
-VSCode is good at adaptiing to changing context from your computer at virtually every level, it is not scared of change.
 
-However with Transformer we want to organize change into discrete steps that can be reversed, reverted, backed up, synced, and all the suble things, but we want that for free in some proven form.
+These 2 things present complexity.  That complexity comes in 2 forms:
 
-That form exists between VSCode and git which both underly Transformer.
+## UI Complexity
 
-One key is the careful programming around files. The techniques and patterns needed for that are within VSCode and reused in Transformer, techniques like working copies, which allows VSCode to never lose your work and you don't have to save your files.
+Many modern web applications have very minimal complexity in the UI layer and most of the complexity is managed in the database.  The modern relational database powers 70% of web applications.
 
-Another key is tracking the content in the files and exchanging them safely with others and branching and merging changes to that content.  This is all brought by git, which cyrpotgraphically hashes and signes the content and tracks it with history and lightweight branching.
+While native apps have increasing complexity that provides sophisticated experiences, and so do games, web apps have fallen behind for the most part with notable exceptions like Figma, Gmail, and other high powered web apps.
 
-And yet another key is that the integration between VSCode and git needs to be good if we are to have a chance of semi proffesionals actually using git to exchange content.
+Most of these high powered applications have embraced the complexity with bigger more custom codebases that use the full power of modern languages.   This is also precisely what VSCode does with embracing Javascript fully via Typescript.   VSCode has already achieved the high powered success on which Transformer is built.
 
-Transformer needs to work for semi professionals and bring together the above concepts and more into very easy to understand concepts for the human user of Transformer, who we want to feel very empowered, coherent, and flowy
+Web apps that are not high powered like React apps, and other modern framework apps, simply rely on the database for most of the real complexity of the application, a wise choice.   The React component API surface area is an example of something that simplifies the UI layer for this reason but it also prevents really powerful performant modular apps.
 
-So Transformer adds a new viewlet to VSCode to accomplish this.   The most basic viewlet in VSCode is the `Explorer` viewlet which shows a tree of files and folders in the current workspace.  For `Transformer` the most basic viewlet is the `Control` viewlet.
+## Process, Change, Syncing, Versions, Collaboration, oh my!
 
+To cut to the chase, git solves virtually all of this and has proven itself to be the perfect solution for managing complexity in software development, which is arguably one of the most complex human activities in terms of the demands on collaboration, change, and process.
+
+Yet most modern semi professionals do not work on top of git.
+
+Yes, you say, because git is too complex!
+
+Most users who gto an ATM, use a modern safe double ledger transactional system, even if they can't understand it.  It would be not safe not to.
+
+Most semi professional users should be working on top of and collaborating with git, but they are not.
+
+Because our current tools do not make it easy to do so.
+
+We need the ATMS of git.
+
+So therefore another crucial key to managing complexity of all kinds lies in the integration between VSCode and git, which together provide several crucial capabilities:
+
+1. **Smart File Handling**: VSCode's working copy system ensures you never lose work, eliminating the need for manual saving. This system, proven in production use, is leveraged and extended by Transformer.
+
+2. **Content Versioning**: Git provides cryptographic content tracking, enabling:
+   - Safe file exchange between users
+   - History tracking with branching
+   - Secure content signing
+   - Lightweight branching and merging
+
+3. **Seamless Integration**: The connection between VSCode and git must be robust and intuitive, especially for semi-professional users who need to exchange content without deep git expertise.
+
+4. **Discrete Operations**: Transformer builds on top of VSCode and git and organizes all changes into discrete, trackable operations.  The state of the workspace and it's files and hence the underlying git repository and its content is tracked and can be queried at any time.
+
+
+# The Bridge to Users
+
+While these technical capabilities are powerful, their primary value lies in making sophisticated development workflows accessible to semi-professional users - people who need to create and automate workflows but aren't full-time developers. These users require powerful tools but often lack deep technical expertise in areas like git operations and content tracking.
+
+This creates a specific challenge: How do we expose the power of git-based content tracking and VSCode's technical capabilities while making them approachable? The solution needs to:
+
+- Hide technical complexity while preserving functionality
+- Provide clear visibility into what's happening
+- Make complex operations intuitive
+- Maintain all the benefits of our technical implementation
+
+Improving on top of VSCode's already proven visual workflows emerge as the natural solution to this challenge. They provide a familiar way to understand and control complex operations without requiring deep technical knowledge. By presenting git operations, content tracking, and automation through a visual interface, we can make these powerful tools accessible while maintaining their sophistication.
+
+A viewlet, which are VSCode's main sidebar tabs, is the natural choice for this interface because it integrates seamlessly with VSCode's existing patterns, provides persistent visibility of key controls, and allows users to manage complex operations through familiar tree views, panels, and buttons. This approach leverages VSCode's proven UI patterns while creating a dedicated space for Transformer's unique capabilities.
+
+The goal is for semi-professional users to feel empowered, working with a coherent, flowing interface that make complex operations feel natural and intuitive. By bringing together VSCode's technical capabilities with git's content tracking in an accessible interface, we can sculpt a platform where users can focus on automating their content and context rather than the underlying technology.
 
 ## `Control` Viewlet
 
-The `Control` viewlet sits in the coveted sidebar position and controls Transformer with 4 vertically layed out view panes:
+The `Control` viewlet sits in the coveted sidebar position and controls Transformer with 3 vertically layed out view panes:
 
 ### **Program**
 
 The Program view is where users see and interact with their operations - the building blocks of automation in Transformer. Think of operations as individual steps in your workflow, like "show a message" or "create a file". These operations need to be:
-- Organized in a clear hierarchy
-- Easy to run on demand
+
+- Organized in a clear hierarchy.
+- Easy to run in response to context changes or manually, which itself is a context change
 - Tracked so you can see their status
 - Displayed in a user-friendly way
 
-To implement this efficiently, we leveraged an existing VSCode system that already handles these exact needs: the testing framework. While this might seem surprising at first, consider the parallels:
+To implement this efficiently, we leveraged an existing VSCode system that already handles these exact needs: the testing contribution, contributed at path `src/vs/workbench/contrib/testing`. 	 While this might seem surprising at first, consider the parallels:
 
-- Just as tests are organized in a tree (like "Frontend Tests > Login Tests > Test Valid Password"), operations in Transformer are organized hierarchically
+- Just as tests are organized in a tree inside the `Testing` explorer viewlet (like "Frontend Tests > Login Tests > Test Valid Password"), operations in Transformer are organized hierarchically
 - Just as tests can be run on demand, operations need to be triggered when needed
 - Just as tests have states (passing/failing/running), operations have execution states
 - Just as tests need a clear UI to display and manage them, operations need a similar interface
 
-This is why Transformer adapts VSCode's testing infrastructure, specifically the `ITestItem` interface and `Testing Explorer` UI. We've taken this proven system and repurposed it:
-- The "test explorer" becomes our "operation explorer"
-- "Running a test" becomes "executing an operation"
-- "Test results" become "operation results"
+
+What is a bit different is that operations have parameters.  Each operation in the `Program` view can have parameter nodes that define its behavior.  Parameters link to context keys, where state is stored between operations, or other operations in the case of jumps or conditional logic.
+
+
+This is why Transformer takes VSCode's proven testing infrastructure,and repurposed it:
+- The `Testing` viewlet becomes is moved to the `Program` viewpane in the Transformer `Control` viewlet
+- "Running a test" becomes "running an operation" or "running the whole program"
+- "Test results" become "Program results"
+- We can utilize the testing contribution's: 2 "projections", a list or tree projection onto the view, a way for users to see the operations.
+
+These are just examples, there are dozens of ways to utlize the testing contribution.  The mapping is clear and easy to understand and since the testing contribution is designed to be very generic anyway, it works well with Transformer's needs.
 
 The beauty of this approach is that we get a robust, well-tested system for managing our operations, complete with:
 - A hierarchical tree view for organizing operations
@@ -67,50 +119,42 @@ The beauty of this approach is that we get a robust, well-tested system for mana
 - Status indicators
 - Detailed result reporting
 
-For users, none of this technical implementation matters - they simply see a clean, organized view of their operations that they can run, monitor, and manage. The Program view also works seamlessly with the Operation view below it, where users can configure the parameters for each operation.
+For users, none of this technical implementation matters - they simply see a clean, organized view of their operations that they can run, monitor, and manage. The Program view also works seamlessly with the `Operation` view below it, where users can configure the parameters for each operation.
 
-Each operation in the Program view can have parameter nodes that define its behavior. While these parameters are configured in the Operation view pane, they can be referenced and linked from the Program view, allowing users to see the relationships between different operations and their settings.
 
-### **Operation**
+*What are programs?  really...*.
 
-The Operation view is where you configure how each operation behaves. Think of it as a control panel for customizing the currently selected operation in your program. When you select any operation in the Program view above, this panel shows you all the settings (parameters) that control how that operation will work.
+The answer is multiple-choice, all of the above.
 
-For example:
-- A "show message" operation might have parameters for the message text and type (info/warning/error)
-- A "file upload" operation might have parameters for allowed file types and upload location
-- A "UI text" operation would have parameters for the actual text to display and its formatting
+- Programs can be thought of as ways for users to build VSCode actions that run across VSCode services and context.
+- Programs are event handlers for the DOM
+- Programs are widgets to build custom UI
+- Programs can demand and  "protocol" needs, demands for parameters, and data/content in a certain shape in order to work with the operation.
 
-Parameters can be set in two ways:
-1. Direct values - typing or selecting a specific value for the parameter
-2. Linked values - connecting the parameter to another operation's output, creating a chain of related actions
-
-The Operation view is intentionally compact (shorter than other panes) because you typically only need to focus on a few parameters at a time. It's designed to be:
-- Clear and uncluttered, showing only relevant settings for the current operation
-- Quick to access, sitting right below the Program view where you select operations
-- Flexible enough to handle both simple parameters (like text input) and complex ones (like file selections or dropdown menus)
-
-What makes this view particularly powerful is how it works with the linking system. When you're setting a parameter, you can choose to link it to:
-- Results from previous operations
-- Context values that change as your program runs
-- System values from VSCode itself
-
-This linking capability is what allows you to build complex workflows where operations work together, passing information between them just by connecting their parameters.
+In general we want to expose quite a bit of variable surface area in the operations to do a wide range of useful things in the underlying VSCode services, context and UI, the underlying user's computer (accessing their files, their apps, screenshots, voice, and more), and AI with the level of sophistiation, modularity, adaptability found in VSCode.
 
 ### **Context**
 
-The Context view is your window into the "memory" of your program - it shows you exactly what your program knows and tracks at any given moment. Think of it as a living snapshot that updates as your program runs, tracking everything from file contents to user inputs to program settings.
+The Context view is your window into the "memory" of your program - it shows you exactly what your program knows and tracks at any given moment. Think of it as a living snapshot that updates as your program runs, tracking everything from a simple boolean or string to file contents to Transformer's own settings.
 
-This view is organized as an interactive tree that shows all the key pieces of information (we call these "context keys") that your program is tracking. For example, you might see:
+The `Context` view is interactive treeview that only shows the context keys from running programs plus VSCode and Transformer's own context keys which you can use in your operations.
+
+For example, when a program is running, you might see:
 - File-related context: which files are open, their contents, their status
+- AI-related context: which AI models are available, which is selected, and more
 - UI-related context: which buttons are active, what text is displayed
-- Program-related context: current step in a workflow, stored values, calculation results
-- System-related context: VSCode settings, environment information
+- Program-related context: current operation, stored values, calculation results
+- Transformer-related context: VSCode settings, environment information
 
 What makes this view powerful is that it's both:
 - **Historical**: You can select any operation in your program and see exactly what the context looked like at that point
 - **Interactive**: You can explore the full tree of information, expanding branches to dig deeper into specific details
 
-The Context view leverages VSCode's built-in context key system, which means it's:
+
+Transformer `Context` is built on top VSCode's powerful and well proven context key system which is well documented at `src/vs/platform/contextkey/common/explainContextKey.md`.
+
+
+This means it's:
 - Fast and reliable (built on proven VSCode technology)
 - Automatically updates as your program runs
 - Integrates smoothly with other parts of Transformer
@@ -123,9 +167,15 @@ For users, this means you can:
 
 The Context view works hand-in-hand with the Program and Operation views above it - as you select different operations in the Program view, the Context view updates to show you the state of your program at that exact point in time.
 
-### **UI**
+### **View**
 
-The UI view is your program's visual workspace - a dedicated area where your operations can create interactive interfaces for users. Think of it as a canvas where you can build everything from simple message displays to complex interactive forms, all using familiar VSCode components.
+The View pane is your program's view.
+
+What is a view?
+
+A view is a very old computer word for a window into the program.   It is a way to interact with the program.
+
+Think of Transformer `View` as a dedicated area where your operations can create interactive interfaces for users. Think of it as a canvas where you can build everything from simple message displays to complex interactive forms, all using familiar VSCode components.
 
 Every UI element in this view is created and controlled by operations in your program. Common UI operations include:
 
@@ -165,47 +215,229 @@ The UI view works closely with other views in the Control viewlet:
 
 This creates a central place where users can interact with your program through familiar, professional-looking interfaces without requiring any web development or design expertise.
 
-# Design
+# Practical Examples
 
-Let's go deeper into the actual user workflows and design how they would flow into and out of Transformer.
+Let's explore how users can create programs in Transformer, starting with a simple example and moving to a more complex real-world scenario.
 
-### Hello World
+## Basic example: Hello World
 
-Let's say we just wanted 2 operations in our program, one which sets a message and the other one which displays the message using the vscode dialog service.
+First, let's create a simple program that shows a message dialog. This example will demonstrate the basic concepts of operations, parameters, and linking.
 
-#### Add the `Hello World` message context key
+### Step 1: create a `message` context key
 
-1. use the + button at the top of the `Program` view pane which opens a custom quick pick with just operations like `context key add`
-2. a new operation will show up in the `Program` view pane and be selected, you can configure it in the `Operation` view pane.  It will have 2 child nodes for it's parameters, but you edit them in the `Operation` view pane.
-3. set the `key` parameter to `message`
-4. set the `value` parameter to your desired message e.g., "Hello World!"
+1. Click the + button in the Program view
+2. Select "context key add" from the quick pick menu
+3. In the `Operation` view, you'll see two parameters:
+   - Set `key` to "message"
+   - Set `value` to "Hello World!"
 
-#### Add the `dialog show` operation:
+### Step 2: show the message in a dialog
+1. Click + again in the `Program` view
+2. Select "dialog show" from the quick pick menu
+3. In the `Operation` view, you'll see:
+   - A `text` parameter
+   - A `level` parameter (leave as `Info`)
+4. Link the dialog `text` parameter to your `message` context key by either:
+   - Clicking the link icon next to `text` to activate linking mode.  You should see a special box around the parameter and the interface should have other cues that you are in linking mode.
+   - Pressing "=" with the text parameter focused, which also activates linking mode.
+   - Once in linking mode, you can select the `message` context key from the context view and push either `Enter` or click the link icon, which has now becomes a `Link` button to complete the link.
+   - Alternatively, without entering linking mode , the user can drag the message parameter onto the text parameter, or vice versa, to complete the link.
 
-1.use the + button at the top of the `Program` view pane which opens a custom quick pick with just operations like `ui text`
-2. a new operation will show up in the `Program` view pane and be selected, you can configure it in the `Operation` view pane, and you will see 2 parameters, `text` and `level`
-3. leave the `level` dropdown set to `Info` which means you want the dialog service to show an info dialog
-4. select the link icon next to the `text` parameter and that will activate linking mode.  Select the first operation, `create context key` and then select the `message` parameter node.  Push enter to complete the link.   You will see a link appear in the `text` parameter.
-5. Alernatively you can press `-` while the `text` parameter is focused and that will activate linking mode.
-6. Alernatively without entering linking mode you can drag the parameter nodes of either source or target operation onto the other operation's parameter nodes to link them.
+The Program operation parameters should now indicate the link visually somehow.   Selecting the parameter, should highlight the context key and show the link. Selecting the context key's context menu should reveal a submenu of operations that depend on the context key.
 
+Now when you run your program, it will show "Hello World!" in a VSCode dialog.
 
+## Advanced Example: RFP Response Generator
 
-### RFP
+Let's explore a real-world example: automating RFP (Request for Proposal) responses using Transformer. This example demonstrates how operations and context work together to solve a complex business problem.
 
-In this example, we imagine a more complex scenario:
+### The Business Need
 
-Imagine a program manager that responds to RFPs a lot and have been experimenting with prompts and techniques that get really high quality results and want to share her Transformer program with others.   She thinks it could be a super useful tool across the company but has no formal programming expertise.   The program she has built presents a simple UI in the Transfomer UI pane. It inolves dragging an RFP (from Word doc e.g.) over a view pane that contains a button (where you can also select the file from a dialog).   This kicks off the workflow which ultimately ends in a response.
+A program manager needs to:
+- Streamline RFP response creation
+- Leverage past successful responses
+- Maintain consistent formatting
+- Share the solution with their team
+- Use AI to improve response quality
 
-However what the program manager has discovered is that there are several subtle tricks to make this all work, including a keeping a set of good answers for different categories of answers and letting the AI choose between them.
+### Building the Program
 
-She has found that Transformer has identified this as a useful patten that is built in that she can pick from.  It involves a sequence of easy operations that she can view in Transformer that run sequentially.
+Let's break this down into clear operations and context building steps:
 
-Some of the operations were pretty clear to her, in fact all of them were.  Here is how she had created this.
+#### 1. Setup Core Context
 
-First she prepped the UI by clearing it with a `ui clear` operation.    All the operations in Transformer start with a noun or some sobject in usual and then you can auto complete with some cool verbs.  It was easy for her to pick the right tests to add from the Quick pick.  She typed `trans ui c` and that is usually all she had to type.
+```
+// Define essential context keys
+context key add rfp_content        // Stores the uploaded RFP text
+context key add response_library   // Path to successful responses
+context key add company_template   // Path to company template
+context key add current_sections   // Stores analyzed RFP sections
+context key add final_response     // Stores generated response
+```
 
-Once she had cleared the ui, first wanted to center everything in the ui.  She added the operation `ui center` which just means to center what comes next and then `ui file upload button` which put a file upload button in the center of the UI.
+#### 2. Create Upload Interface
 
-Then she added the operation `ui text` which just means to add some text to the UI.  She typed `trans ui t`, saw the operation she wanted, and pushed enter.
-Using the `Operation` view pane, she changed the `text` parameter to `Drag and drop an RFP here or click to upload`
+```
+// Build initial UI
+ui clear
+ui center
+ui heading "RFP Response Generator"
+ui file upload {
+    param accept = [".doc", ".docx", ".pdf"]
+    param output = "rfp_content"  // Links to rfp_content context key
+}
+ui text "Drag and drop an RFP document or click to upload"
+```
+
+#### 3. Document Processing
+
+```
+// When file is uploaded (triggered by context change)
+operation "Process Document" {
+    // Extract text from document
+    document parse {
+        input = "rfp_content"
+        output = "rfp_text"
+    }
+
+    // Analyze sections
+    ai analyze {
+        input = "rfp_text"
+        output = "current_sections"
+        template = "identify RFP sections and requirements"
+    }
+}
+```
+
+#### 4. Response Generation
+
+```
+// Generate response using AI and templates
+operation "Generate Response" {
+    // First load previous responses
+    folder read {
+        path = "response_library"
+        pattern = "*.docx"
+        output = "past_responses"
+    }
+
+    // Map sections to past responses
+    ai match {
+        sections = "current_sections"
+        responses = "past_responses"
+        output = "mapped_sections"
+    }
+
+    // Generate new response
+    ai generate {
+        input = "mapped_sections"
+        template = "company_template"
+        output = "final_response"
+    }
+}
+```
+
+#### 5. Output Interface
+
+```
+// Create response interface
+ui clear
+ui split {
+    // Preview pane
+    ui panel "Preview" {
+        ui document viewer {
+            content = "final_response"
+        }
+    }
+
+    // Actions pane
+    ui panel "Actions" {
+        ui button "Save to Library" {
+            action = "save_response"
+        }
+        ui button "Copy to Clipboard" {
+            action = "copy_response"
+        }
+        ui button "Export as Word" {
+            action = "export_response"
+        }
+    }
+}
+```
+
+### Key Context Keys
+
+The program builds context systematically:
+
+1. **Document Context**
+   - `rfp_content`: Raw uploaded document
+   - `rfp_text`: Extracted text content
+   - `current_sections`: Analyzed RFP sections
+
+2. **Library Context**
+   - `response_library`: Path to response library
+   - `past_responses`: Loaded previous responses
+   - `company_template`: Company formatting template
+
+3. **Generation Context**
+   - `mapped_sections`: Matched sections to responses
+   - `final_response`: Generated response document
+   - `generation_status`: Tracks generation progress
+
+### Making it More Powerful
+
+The program can be enhanced with additional operations:
+
+1. **Section Management**
+```
+operation "Manage Sections" {
+    ui tree view {
+        data = "current_sections"
+        allow_edit = true
+        on_change = "update_response"
+    }
+}
+```
+
+2. **Template Selection**
+```
+operation "Select Template" {
+    ui select {
+        options = "company_templates"
+        output = "selected_template"
+        on_change = "refresh_preview"
+    }
+}
+```
+
+3. **Response Library Management**
+```
+operation "Manage Library" {
+    ui split {
+        ui tree "Categories" {
+            data = "response_categories"
+        }
+        ui list "Responses" {
+            data = "filtered_responses"
+        }
+    }
+}
+```
+
+### The Power of Context
+
+What makes this program powerful is how it builds context explicitly:
+
+1. Each operation has clear inputs and outputs
+2. Context keys store state between operations
+3. UI updates automatically based on context changes
+4. Operations can be triggered by context changes
+
+The program manager can:
+- See exactly what information is available at each step
+- Modify operations or add new ones easily
+- Share the program with colleagues
+- Track the response generation process
+- Maintain a growing library of successful responses
+
+This example shows how Transformer makes complex workflows manageable by breaking them down into discrete operations that build and transform context systematically.

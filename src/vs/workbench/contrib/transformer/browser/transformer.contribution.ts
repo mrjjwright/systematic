@@ -27,6 +27,31 @@ import { IObservable, observableValue } from '../../../../base/common/observable
 import { ITestProfileService } from '../../../../workbench/contrib/testing/common/testProfileService.js';
 import { TestId } from '../../../../workbench/contrib/testing/common/testId.js';
 
+// Link types
+export const enum TransformerLinkType {
+	ContextKey = 'contextKey',
+	Operation = 'operation'
+}
+
+// Base interface for all link types
+export interface ITransformerLink {
+	type: TransformerLinkType;
+	sourceId: string;      // ID of source operation
+	sourceParam: string;   // Parameter name in source operation
+}
+
+// Specific link type for context keys
+export interface IContextKeyLink extends ITransformerLink {
+	type: TransformerLinkType.ContextKey;
+	contextKey: string;    // Name of the context key
+}
+
+// Specific link type for operation jumps
+export interface IOperationLink extends ITransformerLink {
+	type: TransformerLinkType.Operation;
+	targetId: string;      // ID of target operation
+}
+
 // Operation types for the transformer
 export interface ITransformerOperation {
 	id: string;
@@ -39,6 +64,7 @@ export interface ITransformerOperation {
 		key?: string;
 		value?: any;
 		message?: string;
+		links?: (IContextKeyLink | IOperationLink)[];
 	};
 }
 
@@ -124,6 +150,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 	static readonly ID = 'workbench.contrib.transformer';
 	private testControllerRegistration: IDisposable | undefined;
 	private readonly contextKeyService: IContextKeyService;
+	private operations: Map<string, ITransformerOperation> = new Map();
 
 	constructor(
 		@IContextKeyService contextKeyService: IContextKeyService,
@@ -155,7 +182,6 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			capabilities: testControllerCapabilities,
 
 			async syncTests(token: CancellationToken) {
-
 				// First create root node
 				const rootNode: ITestItem = {
 					extId: controllerId,
@@ -181,51 +207,36 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 				that.testService.publishDiff(controllerId, rootDiff);
 
+				// Add sample operations with links
+				const setContextOp: ITransformerOperation = {
+					id: `${controllerId}\0setContext`,
+					type: 'setContext',
+					params: {
+						key: 'message',
+						value: 'Hello from Transformer!'
+					}
+				};
+
+				const showDialogOp: ITransformerOperation = {
+					id: `${controllerId}\0showDialog`,
+					type: 'showDialog',
+					params: {
+						message: '',
+						links: [{
+							type: TransformerLinkType.ContextKey,
+							sourceId: `${controllerId}\0showDialog`,
+							sourceParam: 'message',
+							contextKey: 'message'
+						}]
+					}
+				};
+
+				// Store the operations
+				that.addOperation(setContextOp);
+				that.addOperation(showDialogOp);
+
 				// Then add operations as children using TestId to join paths
 				const operations: TestsDiff = [
-					{
-						op: TestDiffOpType.Add,
-						item: {
-							controllerId,
-							expand: TestItemExpandState.NotExpandable,
-							item: {
-								extId: `${controllerId}\0setContext`,
-								label: 'Set Message Context',
-								tags: [],
-								busy: false,
-								range: null,
-								uri: undefined,
-								description: 'Sets the message context key',
-								error: null,
-								sortText: null
-							}
-						}
-					},
-					{
-						op: TestDiffOpType.Add,
-						item: {
-							controllerId,
-							expand: TestItemExpandState.NotExpandable,
-							item: {
-								extId: `${controllerId}\0showDialog`,
-								label: 'Show Message Dialog',
-								tags: [],
-								busy: false,
-								range: null,
-								uri: undefined,
-								description: 'Shows a message dialog',
-								error: null,
-								sortText: null
-							}
-						}
-					}
-				];
-
-				// Add children
-				that.testService.publishDiff(controllerId, operations);
-
-				// Add more operations
-				const moreOps: TestsDiff = [
 					{
 						op: TestDiffOpType.Add,
 						item: {
@@ -283,7 +294,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				];
 
 				// Publish more operations
-				that.testService.publishDiff(controllerId, moreOps);
+				that.testService.publishDiff(controllerId, operations);
 
 				// Add a run profile for the controller
 				that.testProfileService.addProfile(myController, {
@@ -302,19 +313,32 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			},
 
 			async runTests(request: IStartControllerTests[], token: CancellationToken): Promise<IStartControllerTestsResult[]> {
-
 				for (const req of request) {
 					for (const testIdString of req.testIds) {
-						// Get the local ID (part after the delimiter) to check which operation to run
 						const localId = TestId.localId(testIdString);
+						const operation = that.getOperation(testIdString);
 
 						switch (localId) {
-							case 'setContext':
+							case 'setContext': {
+								// Create message context key
 								that.contextKeyService.createKey('message', 'Hello from Transformer!');
 								break;
+							}
 
 							case 'showDialog': {
-								const message = that.contextKeyService.getContextKeyValue<string>('message');
+								// Check for links in the operation
+								const messageLink = operation?.params.links?.find(
+									(link: ITransformerLink): link is IContextKeyLink =>
+										link.type === TransformerLinkType.ContextKey &&
+										link.sourceParam === 'message'
+								);
+
+								let message: string | undefined;
+								if (messageLink) {
+									// Get value from linked context key
+									message = that.contextKeyService.getContextKeyValue<string>(messageLink.contextKey);
+								}
+
 								if (message) {
 									that.dialogService.info('Message', message);
 								}
@@ -421,6 +445,16 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				weight: 97
 			},
 		], VIEW_CONTAINER);
+	}
+
+	// Helper to get operation details
+	private getOperation(testId: string): ITransformerOperation | undefined {
+		return this.operations.get(testId);
+	}
+
+	// Add helper to store operations
+	private addOperation(operation: ITransformerOperation): void {
+		this.operations.set(operation.id, operation);
 	}
 }
 
