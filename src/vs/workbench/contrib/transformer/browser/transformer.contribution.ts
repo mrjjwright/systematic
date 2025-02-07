@@ -581,27 +581,41 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
 				const chatService = accessor.get(IChatService);
 				const layoutService = accessor.get(IWorkbenchLayoutService);
+				// Show the chat view panel first
+				await layoutService.setPartHidden(false, Parts.AUXILIARYBAR_PART);
 
 				if (!chatService.isEnabled(ChatAgentLocation.Editor)) {
 					throw new Error('Chat is not available');
 				}
 
 				// Create session and wait for initialization
-				const session = chatService.startSession(ChatAgentLocation.Editor, CancellationToken.None);
+				const session = chatService.startSession(ChatAgentLocation.Panel, CancellationToken.None);
 				await session.waitForInitialization();
 
-				// Show the chat view panel
-				await layoutService.setPartHidden(false, Parts.AUXILIARYBAR_PART);
 
-				// Send the request
+				// Get prompt and prepare request
 				const prompt = params.find(p => p.name === 'prompt')?.value ?? 'write a poem';
-				const response = await chatService.sendRequest(session.sessionId, prompt);
+
+				// Explicitly specify our transformer agent ID and wait for response
+				const response = await chatService.sendRequest(session.sessionId, prompt, {
+					agentId: TransformerChatAgent.ID // Explicitly use our agent
+				});
+
 				if (!response) {
 					throw new Error('Failed to send chat request');
 				}
 
-				// Wait for the response to complete
-				await response.responseCompletePromise;
+				// Wait for both creation and completion
+				await Promise.all([
+					response.responseCreatedPromise,
+					response.responseCompletePromise
+				]);
+
+				// Validate response was added
+				const requests = session.getRequests();
+				if (!requests.length || !requests[0].response) {
+					throw new Error('Request was not properly added to chat history');
+				}
 			}
 		});
 	}
