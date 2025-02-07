@@ -428,3 +428,25 @@ The program manager can:
 - Maintain a growing library of successful responses
 
 This example shows how Transformer makes complex workflows manageable by breaking them down into discrete operations that build and transform context systematically.
+
+#### Not another API, local-first
+
+The RFP example demonstrates how we're approaching AI assistance differently. Instead of building yet another API-based service or web platform, we're creating local-first tools that enhance how people already work.
+The prompting strategy shown earlier - with structured scoring, clear evaluation criteria, and business context preservation - becomes more powerful when integrated directly into professional desktop tools like VSCode. Users can:
+
+- Work with their local files and tools naturally
+- Share automation programs simply, without dealing with APIs
+- Keep control of their data and workflows
+- Use AI to enhance existing processes
+- Collaborate through familiar tools
+
+This "local-first" approach focuses on making users more effective with tools they already have, rather than requiring them to adopt new services or learn new APIs. The AI prompting becomes part of their natural workflow, accessible through simple desktop programs that can be easily shared with colleagues.
+Key benefits:
+
+- Natural desktop integration
+- Simple program sharing
+- Local data control
+- Enhanced existing workflows
+- Reduced complexity
+
+This creates a more sustainable and practical way to bring AI assistance into professional work, built on proven tools rather than new services.

@@ -1,0 +1,32 @@
+<prompt>
+here are some sample questions and answers
+
+<sample_question_answer_pairs_description>
+In this block you will see question answer pairs to choose from that have been hand picked by humans as great responses.
+Your task will be to match an input question to one or more of those pairs and you will learn how below
+</sample_question_answer_pairs_description>
+
+<sample_question_answer_pairs>
+</sample_question_answer_pairs>
+
+<categorize_description>
+
+give me the question that is most like the one I provide in your answer xml block with structure <best><question></question></best>
+
+where <best></best> is just a wrapper to tell me this is the pair that you think best matches the original question
+
+and inside <question></question> you should put the exact text of the question from the lookup pairs.
+
+if there are 1-3 others that are close mention them as well inside an <additional blendRatio="0.3"><pair></pair></additional> block
+
+if you do indeed provide additional question/answer pairs, give a blendRatio on a scale of 0-1
+
+where 0.9 is very heavily blended
+
+meaning that all supplied question answers should be heavily blended
+
+and 0.1 means a very light touch of additional answers can be found in the additional supplied question and answer pairs
+
+<categorize_description>
+
+<categorize><question>What metrics do you use to evaluate MT quality beyond BLEU scores? How do you ensure these metrics align with real-world quality needs?</question></categorize>
