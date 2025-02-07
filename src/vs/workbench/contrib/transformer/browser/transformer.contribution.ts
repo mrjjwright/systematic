@@ -4,7 +4,7 @@ import { ILogService } from '../../../../platform/log/common/log.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../common/contributions.js';
 import { ViewPane } from '../../../browser/parts/views/viewPane.js';
 import { ViewPaneContainer } from '../../../browser/parts/views/viewPaneContainer.js';
-import { IWorkbenchLayoutService } from '../../../services/layout/browser/layoutService.js';
+import { IWorkbenchLayoutService, Parts } from '../../../services/layout/browser/layoutService.js';
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
@@ -26,6 +26,23 @@ import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { IObservable, observableValue } from '../../../../base/common/observable.js';
 import { ITestProfileService } from '../../../../workbench/contrib/testing/common/testProfileService.js';
 import { TestIdPathParts } from '../../testing/common/testId.js';
+import { IChatFollowup, IChatProgress, IChatService } from '../../../contrib/chat/common/chatService.js';
+import {
+	IChatAgentService,
+	IChatAgent,
+	ChatAgentLocation,
+	IChatWelcomeMessageContent,
+	IChatAgentResult,
+	IChatAgentRequest,
+	IChatAgentHistoryEntry
+} from '../../../contrib/chat/common/chatAgents.js';
+import { Event, Emitter } from '../../../../base/common/event.js';
+import { MarkdownString } from '../../../../base/common/htmlContent.js';
+import { ExtensionIdentifier } from '../../../../platform/extensions/common/extensions.js';
+
+const transformerViewIcon = registerIcon('transformer-view-icon', Codicon.rocket, localize('transformerViewIcon', 'View icon of the transformer view.'));
+const transformerAiIcon = registerIcon('transformer-ai-icon', Codicon.sparkle, localize('transformerAIIcon', 'AI icon of the transformer view.'));
+
 
 export const enum TransformerLinkType {
 	ContextKey = 'contextKey',
@@ -64,7 +81,8 @@ export interface ITransformerOperation {
 	| 'showDialog'
 	| 'uiClear'
 	| 'uiButton'
-	| 'uiText';
+	| 'uiText'
+	| 'startChat';  // Add this new type
 	params: ITransformerParam[];
 }
 
@@ -202,6 +220,88 @@ class ViewOperationPane extends ViewPane {
 	}
 }
 
+class TransformerChatAgent implements IChatAgent {
+	static ID = 'transformer.chat';
+	readonly id = TransformerChatAgent.ID;
+	readonly extensionId = new ExtensionIdentifier('transformer.builtin');
+	readonly extensionPublisherId = 'transformer';
+	readonly extensionDisplayName = 'Transformer';
+	readonly name = 'Transformer';
+	readonly locations = [ChatAgentLocation.Panel, ChatAgentLocation.Editor, ChatAgentLocation.EditingSession];
+	readonly displayName = 'Transformer Chat';
+	readonly metadata = {};
+	readonly slashCommands = [];
+	readonly disambiguation = [{
+		category: 'general',
+		description: 'Transformer built-in chat agent',
+		examples: ['write a poem', 'hello']
+	}];
+
+	private readonly _onDidChangeStatus = new Emitter<void>();
+	readonly onDidChangeStatus: Event<void> = this._onDidChangeStatus.event;
+
+	private readonly mockResponses = new Map([
+		['write a poem', `Here's a poem about coding:
+
+\`\`\`
+In lines of code, we build our dreams,
+Functions flow like gentle streams.
+Objects dance in memory's space,
+Each bug we fix with gentle grace.
+
+Through loops and logic, day by day,
+We craft our worlds in our own way.
+In TypeScript's embrace we find
+New patterns of the coding kind.
+\`\`\`
+
+Would you like me to explain any part of the poem?`],
+		['hello', localize('chatWelcome', "Hello! I am Transformer, your coding assistant. How can I help you today?")]
+	]);
+
+	constructor() { }
+
+	async invoke(request: IChatAgentRequest, progress: (part: IChatProgress) => void, history: IChatAgentHistoryEntry[], token: CancellationToken): Promise<IChatAgentResult> {
+		// Simulate some thinking time
+		await new Promise(resolve => setTimeout(resolve, 500));
+
+		const response = this.mockResponses.get(request.message.toLowerCase()) ||
+			`I understood your request: "${request.message}"\nI'm a simple demo agent that only knows how to write poems and say hello.`;
+
+		progress({
+			content: new MarkdownString(response),
+			kind: 'markdownContent'
+		});
+
+		return {
+			errorDetails: undefined,
+			timings: { totalElapsed: 500, firstProgress: 500 }
+		};
+	}
+
+	async provideWelcomeMessage(token: CancellationToken): Promise<IChatWelcomeMessageContent | undefined> {
+		return {
+			icon: transformerAiIcon,
+			title: 'Transformer Chat',
+			message: new MarkdownString('Welcome to Transformer Chat! Try asking me to `write a poem` or just say `hello`.')
+		};
+	}
+
+	async provideSampleQuestions(location: ChatAgentLocation, token: CancellationToken): Promise<IChatFollowup[] | undefined> {
+		return [{
+			kind: 'reply',
+			agentId: TransformerChatAgent.ID,
+			message: 'write a poem',
+			title: 'Write a poem about coding'
+		}, {
+			kind: 'reply',
+			agentId: TransformerChatAgent.ID,
+			message: 'hello',
+			title: 'Say hello'
+		}];
+	}
+}
+
 export class TransformerContribution extends Disposable implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.transformer';
 	private testControllerRegistration: IDisposable | undefined;
@@ -214,10 +314,16 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		@ITestService private readonly testService: ITestService,
 		@ITestProfileService private readonly testProfileService: ITestProfileService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
+		@IChatAgentService private readonly chatAgentService: IChatAgentService,
 	) {
 		super();
 		contextKeyService.createKey(IS_TRANSFORMER_ENABLED.key, true);
 		this.logService.info('Transformer initialized');
+
+		// Register our chat agent first
+		this.registerChatAgent();
+
+		// Then continue with other registrations
 		this.registerActions();
 		this.registerViewlet();
 		this.registerTestController();
@@ -338,7 +444,6 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 	private registerViewlet(): void {
 		const viewContainerRegistry = Registry.as<IViewContainersRegistry>(Extensions.ViewContainersRegistry);
 		const viewsRegistry = Registry.as<IViewsRegistry>(Extensions.ViewsRegistry);
-		const transformerViewIcon = registerIcon('transformer-view-icon', Codicon.rocket, localize('transformerViewIcon', 'View icon of the transformer view.'));
 
 		const VIEWLET_ID = 'transformer.control.viewlet';
 		const VIEW_CONTAINER: ViewContainer = viewContainerRegistry.registerViewContainer({
@@ -425,7 +530,14 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				required: false,
 				defaultValue: 'Info'
 			}],
-			impl: showDialogImpl
+			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
+				const dialogService = accessor.get(IDialogService);
+				const text = params.find(p => p.name === 'text')?.value;
+				const level = params.find(p => p.name === 'level')?.value ?? 'Info';
+
+				if (!text) { throw new Error('Missing text parameter'); }
+				return dialogService.info(level, text);
+			}
 		});
 
 		// Register set context operation
@@ -444,8 +556,78 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				description: 'Context key value',
 				required: true
 			}],
-			impl: setContextImpl
+			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
+				const contextKeyService = accessor.get(IContextKeyService);
+				const key = params.find(p => p.name === 'key')?.value;
+				const value = params.find(p => p.name === 'value')?.value;
+
+				if (!key) { throw new Error('Missing key parameter'); }
+				contextKeyService.createKey(key, value);
+			}
 		});
+
+		// Register chat operation
+		this.operationRegistry.registerOperation({
+			id: OPERATION_START_CHAT,
+			type: 'startChat',
+			description: 'Starts a chat session with a specific prompt',
+			parameterSchema: [{
+				type: 'string',
+				name: 'prompt',
+				description: 'Message to send to chat',
+				required: false,
+				defaultValue: 'write a poem'
+			}],
+			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
+				const chatService = accessor.get(IChatService);
+				const layoutService = accessor.get(IWorkbenchLayoutService);
+
+				if (!chatService.isEnabled(ChatAgentLocation.Editor)) {
+					throw new Error('Chat is not available');
+				}
+
+				// Create session and wait for initialization
+				const session = chatService.startSession(ChatAgentLocation.Editor, CancellationToken.None);
+				await session.waitForInitialization();
+
+				// Show the chat view panel
+				await layoutService.setPartHidden(false, Parts.AUXILIARYBAR_PART);
+
+				// Send the request
+				const prompt = params.find(p => p.name === 'prompt')?.value ?? 'write a poem';
+				const response = await chatService.sendRequest(session.sessionId, prompt);
+				if (!response) {
+					throw new Error('Failed to send chat request');
+				}
+
+				// Wait for the response to complete
+				await response.responseCompletePromise;
+			}
+		});
+	}
+
+	private registerChatAgent(): void {
+		const transformerAgent = new TransformerChatAgent();
+
+		// First register the agent with its metadata
+		this._register(this.chatAgentService.registerAgent(transformerAgent.id, {
+			id: transformerAgent.id,
+			name: transformerAgent.name,
+			extensionId: transformerAgent.extensionId,
+			extensionDisplayName: transformerAgent.extensionDisplayName,
+			extensionPublisherId: transformerAgent.extensionPublisherId,
+			publisherDisplayName: transformerAgent.extensionPublisherId,
+			fullName: transformerAgent.displayName,
+			description: 'Transformer built-in chat agent',
+			locations: transformerAgent.locations,
+			metadata: transformerAgent.metadata,
+			slashCommands: transformerAgent.slashCommands,
+			disambiguation: transformerAgent.disambiguation,
+			isDefault: true
+		}));
+
+		// Then register the implementation
+		this._register(this.chatAgentService.registerAgentImplementation(transformerAgent.id, transformerAgent));
 	}
 
 }
@@ -456,32 +638,9 @@ registerWorkbenchContribution2(TransformerContribution.ID, TransformerContributi
 // operation ids
 export const OPERATION_SET_CONTEXT = 'setContext';
 export const OPERATION_SHOW_DIALOG = 'showDialog';
-
-// operation implementations
-
-const someOperationImpls: Map<string, IOperationImpl> = new Map();
-
-const showDialogImpl: IOperationImpl = async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
-	const dialogService = accessor.get(IDialogService);
-	const text = params.find(p => p.name === 'text')?.value;
-	const level = params.find(p => p.name === 'level')?.value ?? 'Info';
-
-	if (!text) { throw new Error('Missing text parameter'); }
-	return dialogService.info(level, text);
-};
+export const OPERATION_START_CHAT = 'startChat';
 
 
-const setContextImpl: IOperationImpl = async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
-	const contextKeyService = accessor.get(IContextKeyService);
-	const key = params.find(p => p.name === 'key')?.value;
-	const value = params.find(p => p.name === 'value')?.value;
-
-	if (!key) { throw new Error('Missing key parameter'); }
-	contextKeyService.createKey(key, value);
-};
-
-someOperationImpls.set(OPERATION_SET_CONTEXT, setContextImpl);
-someOperationImpls.set(OPERATION_SHOW_DIALOG, showDialogImpl);
 
 /**
  * Resolves parameters for an operation by evaluating any linked context keys
@@ -543,13 +702,11 @@ export function operationToTestItem(operation: ITransformerOperation): ITestItem
 }
 
 export function createHelloWorldProgram(controllerId: string) {
-
-
 	const helloWorldProgram: ITransformerOperation[] = [
 		{
 			extId: `${controllerId}${TestIdPathParts.Delimiter}setContext`,
 			description: 'Sets a welcome message in context',
-			type: OPERATION_SET_CONTEXT,
+			type: 'setContext',
 			params: [{
 				name: 'key',
 				value: 'message'
@@ -561,7 +718,7 @@ export function createHelloWorldProgram(controllerId: string) {
 		{
 			extId: `${controllerId}${TestIdPathParts.Delimiter}showDialog`,
 			description: 'Shows the welcome message in a dialog',
-			type: OPERATION_SHOW_DIALOG,
+			type: 'showDialog',
 			params: [{
 				name: 'text',
 				link: {
@@ -573,6 +730,12 @@ export function createHelloWorldProgram(controllerId: string) {
 				name: 'level',
 				value: 'Info'
 			}]
+		},
+		{
+			extId: `${controllerId}${TestIdPathParts.Delimiter}startChat`,
+			description: 'Opens chat and requests a poem',
+			type: 'startChat',
+			params: [] // Using default 'write a poem' prompt
 		}
 	];
 
