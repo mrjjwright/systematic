@@ -12,8 +12,8 @@ import { URI } from '../../../base/common/uri.js';
 import { ILogService } from '../../../platform/log/common/log.js';
 import { ISheetProvider, SheetCell } from '../../services/sheet/common/sheet.js';
 
-@extHostNamedCustomer(MainContext.MainThreadSheet)
-export class MainThreadSheet extends Disposable implements MainThreadSheetShape {
+@extHostNamedCustomer(MainContext.MainThreadSheets)
+export class MainThreadSheets extends Disposable implements MainThreadSheetShape {
 	private readonly proxy: ExtHostSheetShape;
 	private readonly providers = new Map<number, {
 		extensionId: ExtensionIdentifier;
@@ -26,10 +26,10 @@ export class MainThreadSheet extends Disposable implements MainThreadSheetShape 
 		@ILogService private readonly logService: ILogService
 	) {
 		super();
-		this.proxy = context.getProxy(ExtHostContext.ExtHostSheet);
+		this.proxy = context.getProxy(ExtHostContext.ExtHostSheets);
 	}
 
-	$registerSheetProvider(
+	$registerSheetMutator(
 		handle: number,
 		extensionId: ExtensionIdentifier,
 	): void {
@@ -63,7 +63,7 @@ export class MainThreadSheet extends Disposable implements MainThreadSheetShape 
 		}
 	}
 
-	$unregisterSheetProvider(handle: number): void {
+	$unregisterSheetMutator(handle: number): void {
 		const registration = this.providers.get(handle);
 		if (registration) {
 			registration.disposable.dispose();

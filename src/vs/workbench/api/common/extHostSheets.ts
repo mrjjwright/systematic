@@ -10,20 +10,20 @@ import { DisposableStore } from '../../../base/common/lifecycle.js';
 import { IExtensionDescription } from '../../../platform/extensions/common/extensions.js';
 import { SheetCell } from '../../services/sheet/common/sheet.js';
 
-export interface ISheetDataProvider {
-	readCell(uri: URI, row: number, col: number): Promise<SheetCell>;
-	writeCell(uri: URI, cell: SheetCell): Promise<void>;
+export interface ISheetMutator {
+	readCell(uri: URI, row: number, col: number): Thenable<SheetCell>;
+	writeCell(uri: URI, cell: SheetCell): Thenable<void>;
 }
 
 export class ExtHostSheets implements ExtHostSheetShape {
 	private static handlePool: number = 0;
 
 	private readonly proxy: MainThreadSheetShape;
-	private readonly providers = new Map<number, ISheetDataProvider>();
+	private readonly providers = new Map<number, ISheetMutator>();
 	private readonly disposables = new DisposableStore();
 
 	constructor(mainContext: IMainContext) {
-		this.proxy = mainContext.getProxy(MainContext.MainThreadSheet);
+		this.proxy = mainContext.getProxy(MainContext.MainThreadSheets);
 	}
 
 	async $readCell(handle: number, uri: UriComponents, row: number, col: number): Promise<SheetCell> {
@@ -42,15 +42,15 @@ export class ExtHostSheets implements ExtHostSheetShape {
 		return provider.writeCell(URI.revive(uri), cell);
 	}
 
-	registerSheetProvider(extension: IExtensionDescription, provider: ISheetDataProvider): vscode.Disposable {
+	registerSheetMutator(extension: IExtensionDescription, provider: ISheetMutator): vscode.Disposable {
 		const handle = ExtHostSheets.handlePool++;
 		this.providers.set(handle, provider);
 
-		this.proxy.$registerSheetProvider(handle, extension.identifier);
+		this.proxy.$registerSheetMutator(handle, extension.identifier);
 
 		const disposable = {
 			dispose: () => {
-				this.proxy.$unregisterSheetProvider(handle);
+				this.proxy.$unregisterSheetMutator(handle);
 				this.providers.delete(handle);
 			}
 		};

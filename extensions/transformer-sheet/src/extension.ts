@@ -1,23 +1,22 @@
 import * as vscode from 'vscode';
-import { SheetService } from './sheetService';
-
-interface MainThreadSheetProtocol {
-	$readSheet(uri: string): Promise<unknown>;
-}
+import { ExcelSheetMutator } from './excelSheetMutator';
 
 export function activate(context: vscode.ExtensionContext) {
-	const sheetService = new SheetService(context);
+	try {
+		// Create and register the sheet mutator
+		const mutator = new ExcelSheetMutator();
+		const disposable = vscode.sheets.registerSheetMutator(mutator);
 
-	// Implement main thread protocol
-	const mainThreadSheet: MainThreadSheetProtocol = {
-		async $readSheet(uri: string) {
-			return sheetService.readSheet(vscode.Uri.parse(uri));
-		}
-	};
+		// Add to extension subscriptions
+		context.subscriptions.push(disposable);
 
-	return {
-		extHostSheet: mainThreadSheet
-	};
+		console.log('Excel Sheet Mutator activated');
+	} catch (error: any) {
+		console.error('Failed to activate Excel Sheet Mutator:', error?.message);
+		throw error;
+	}
 }
 
-export function deactivate() { }
+export function deactivate() {
+	// Cleanup will be handled by disposables
+}

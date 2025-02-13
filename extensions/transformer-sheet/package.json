@@ -1,7 +1,7 @@
 {
   "name": "transformer-sheet",
   "displayName": "Transformer Sheet Operations",
-  "description": "SheetJS integration for Transformer",
+  "description": "Excel spreadsheet support for VS Code",
   "version": "0.0.1",
   "publisher": "vscode",
   "license": "MIT",
@@ -10,8 +10,13 @@
   },
   "main": "./out/extension.js",
   "activationEvents": [
-    "onCommand:transformer-sheet.readSheet"
+    "onSheet:xlsx",
+    "onSheet:xls",
+    "onSheet:csv"
   ],
+  "capabilities": {
+    "sheet": true
+  },
   "contributes": {
     "commands": [{
       "command": "vscode-sheet.readSheet",

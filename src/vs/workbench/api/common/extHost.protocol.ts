@@ -1970,8 +1970,8 @@ export interface ExtHostSheetShape {
 }
 
 export interface MainThreadSheetShape {
-	$registerSheetProvider(handle: number, extensionId: ExtensionIdentifier): void;
-	$unregisterSheetProvider(handle: number): void;
+	$registerSheetMutator(handle: number, extensionId: ExtensionIdentifier): void;
+	$unregisterSheetMutator(handle: number): void;
 }
 
 export interface ExtHostSecretStateShape {
@@ -3078,7 +3078,7 @@ export const MainContext = {
 	MainThreadLocalization: createProxyIdentifier<MainThreadLocalizationShape>('MainThreadLocalizationShape'),
 	MainThreadAiRelatedInformation: createProxyIdentifier<MainThreadAiRelatedInformationShape>('MainThreadAiRelatedInformation'),
 	MainThreadAiEmbeddingVector: createProxyIdentifier<MainThreadAiEmbeddingVectorShape>('MainThreadAiEmbeddingVector'),
-	MainThreadSheet: createProxyIdentifier<MainThreadSheetShape>('MainThreadSheet')
+	MainThreadSheets: createProxyIdentifier<MainThreadSheetShape>('MainThreadSheets')
 };
 
 export const ExtHostContext = {
@@ -3149,5 +3149,5 @@ export const ExtHostContext = {
 	ExtHostTesting: createProxyIdentifier<ExtHostTestingShape>('ExtHostTesting'),
 	ExtHostTelemetry: createProxyIdentifier<ExtHostTelemetryShape>('ExtHostTelemetry'),
 	ExtHostLocalization: createProxyIdentifier<ExtHostLocalizationShape>('ExtHostLocalization'),
-	ExtHostSheet: createProxyIdentifier<ExtHostSheetShape>('ExtHostSheet')
+	ExtHostSheets: createProxyIdentifier<ExtHostSheetShape>('ExtHostSheets')
 };

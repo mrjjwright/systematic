@@ -1,8 +1,16 @@
 {
 	"extends": "../tsconfig.base.json",
 	"compilerOptions": {
-		"outDir": "./out",
-		"types": ["node"]
+		"outDir": "out",
+		"types": ["node"],
+		"typeRoots": [
+			"./node_modules/@types"
+		]
 	},
-	"include": ["src/**/*", "../../src/vscode-dts/vscode.d.ts"]
+	"include": [
+		"src/**/*",
+		"../../src/vscode-dts/vscode.d.ts",
+		"../../src/vscode-dts/vscode.proposed.sheet.d.ts"
+	],
+	"exclude": ["node_modules", ".vscode-test"]
 }

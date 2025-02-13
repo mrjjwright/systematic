@@ -4958,3 +4958,32 @@ export enum InlineEditTriggerKind {
 }
 
 //#endregion
+
+//#region Sheet
+
+export class SheetCell implements vscode.SheetCell {
+	constructor(
+		readonly row: number,
+		readonly col: number,
+		readonly value: any
+	) {
+		if (row < 0 || Math.floor(row) !== row) {
+			throw new Error('Row must be a non-negative integer');
+		}
+		if (col < 0 || Math.floor(col) !== col) {
+			throw new Error('Column must be a non-negative integer');
+		}
+	}
+
+	static isSheetCell(thing: any): thing is SheetCell {
+		if (!thing) {
+			return false;
+		}
+		return typeof thing.row === 'number'
+			&& typeof thing.col === 'number'
+			&& 'value' in thing;
+	}
+}
+
+
+//#endregion
