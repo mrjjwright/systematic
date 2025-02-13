@@ -40,8 +40,6 @@ import { Event, Emitter } from '../../../../base/common/event.js';
 import { MarkdownString } from '../../../../base/common/htmlContent.js';
 import { ExtensionIdentifier } from '../../../../platform/extensions/common/extensions.js';
 
-import { IFileService } from '../../../../platform/files/common/files.js';
-
 const transformerViewIcon = registerIcon('transformer-view-icon', Codicon.rocket, localize('transformerViewIcon', 'View icon of the transformer view.'));
 const transformerAiIcon = registerIcon('transformer-ai-icon', Codicon.sparkle, localize('transformerAIIcon', 'AI icon of the transformer view.'));
 
@@ -621,39 +619,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			}
 		});
 
-		// Register sheet reading operation
-		this.operationRegistry.registerOperation({
-			id: OPERATION_SHEET_READ,
-			type: 'sheetRead',
-			description: 'Reads a spreadsheet and logs its content',
-			parameterSchema: [{
-				type: 'string',
-				name: 'filePath',
-				description: 'Path to the spreadsheet file',
-				required: true
-			}],
-			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
-				const fileService = accessor.get(IFileService);
-				const logService = accessor.get(ILogService);
-				const filePath = params.find(p => p.name === 'filePath')?.value;
 
-				if (!filePath) {
-					throw new Error('Missing filePath parameter');
-				}
-
-				try {
-					const fileContent = await fileService.readFile(filePath);
-					const workbook = XLSX.read(fileContent.value, { type: 'array' });
-					const firstSheetName = workbook.SheetNames[0];
-					const worksheet = workbook.Sheets[firstSheetName];
-					const jsonData = XLSX.utils.sheet_to_json(worksheet);
-					logService.info('Spreadsheet data:', jsonData);
-				} catch (error) {
-					logService.error('Failed to read spreadsheet:', error);
-					throw new Error(`Failed to read spreadsheet: ${error.message}`);
-				}
-			}
-		});
 	}
 
 	private registerChatAgent(): void {

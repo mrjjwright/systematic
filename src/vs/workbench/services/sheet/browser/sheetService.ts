@@ -8,13 +8,13 @@ import { URI } from '../../../../base/common/uri.js';
 import { InstantiationType, registerSingleton } from '../../../../platform/instantiation/common/extensions.js';
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
-import { ISheetProvider, SheetCell } from '../common/sheet.js';
+import { ISheetMutator, SheetCell } from '../common/sheet.js';
 
 
 
 export interface ISheetService {
 	readonly _serviceBrand: undefined;
-	registerProvider(provider: ISheetProvider): IDisposable;
+	registerProvider(provider: ISheetMutator): IDisposable;
 	readCell(uri: URI, row: number, col: number): Promise<SheetCell>;
 	writeCell(uri: URI, cell: SheetCell): Promise<void>;
 }
@@ -25,7 +25,7 @@ export const ISheetService = createDecorator<ISheetService>('sheetService');
 export class SheetService extends Disposable implements ISheetService {
 	declare readonly _serviceBrand: undefined;
 
-	private readonly providers = new Set<ISheetProvider>();
+	private readonly providers = new Set<ISheetMutator>();
 
 	constructor(
 		@ILogService private readonly logService: ILogService
@@ -33,7 +33,7 @@ export class SheetService extends Disposable implements ISheetService {
 		super();
 	}
 
-	registerProvider(provider: ISheetProvider) {
+	registerProvider(provider: ISheetMutator) {
 		this.providers.add(provider);
 		this.logService.trace(`[SheetService] Registered sheet provider from extension: ${provider.extId}`);
 

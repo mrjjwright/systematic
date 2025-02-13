@@ -10,7 +10,7 @@ import { ISheetService } from '../../services/sheet/browser/sheetService.js';
 import { ExtHostContext, ExtHostSheetShape, MainContext, MainThreadSheetShape } from '../common/extHost.protocol.js';
 import { URI } from '../../../base/common/uri.js';
 import { ILogService } from '../../../platform/log/common/log.js';
-import { ISheetProvider, SheetCell } from '../../services/sheet/common/sheet.js';
+import { ISheetMutator, SheetCell } from '../../services/sheet/common/sheet.js';
 
 @extHostNamedCustomer(MainContext.MainThreadSheets)
 export class MainThreadSheets extends Disposable implements MainThreadSheetShape {
@@ -34,7 +34,7 @@ export class MainThreadSheets extends Disposable implements MainThreadSheetShape
 		extensionId: ExtensionIdentifier,
 	): void {
 		try {
-			const provider: ISheetProvider = {
+			const provider: ISheetMutator = {
 				extId: extensionId.value,
 
 				readCell: async (uri: URI, row: number, col: number): Promise<SheetCell> => {

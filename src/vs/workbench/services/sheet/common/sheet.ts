@@ -6,7 +6,7 @@ export interface SheetCell {
 	value: any;
 }
 
-export interface ISheetProvider {
+export interface ISheetMutator {
 	readonly extId: string;
 	readCell(uri: URI, row: number, col: number): Promise<SheetCell>;
 	writeCell(uri: URI, cell: SheetCell): Promise<void>;
