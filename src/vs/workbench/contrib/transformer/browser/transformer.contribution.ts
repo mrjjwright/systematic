@@ -40,6 +40,8 @@ import { Event, Emitter } from '../../../../base/common/event.js';
 import { MarkdownString } from '../../../../base/common/htmlContent.js';
 import { ExtensionIdentifier } from '../../../../platform/extensions/common/extensions.js';
 
+import { IFileService } from '../../../../platform/files/common/files.js';
+
 const transformerViewIcon = registerIcon('transformer-view-icon', Codicon.rocket, localize('transformerViewIcon', 'View icon of the transformer view.'));
 const transformerAiIcon = registerIcon('transformer-ai-icon', Codicon.sparkle, localize('transformerAIIcon', 'AI icon of the transformer view.'));
 
@@ -244,7 +246,7 @@ class TransformerChatAgent implements IChatAgent {
 		['write a poem', `Here's a poem about coding:
 
 \`\`\`
-In lines of code, we build our dreams,
+In lines of code, we build our \`dreams\`,
 Functions flow like gentle streams.
 Objects dance in memory's space,
 Each bug we fix with gentle grace.
@@ -266,7 +268,7 @@ Would you like me to explain any part of the poem?`],
 		await new Promise(resolve => setTimeout(resolve, 500));
 
 		const response = this.mockResponses.get(request.message.toLowerCase()) ||
-			`I understood your request: "${request.message}"\nI'm a simple demo agent that only knows how to write poems and say hello.`;
+			`I understood your request: "${request.message}"\nI'm a simple demo agent that only knows how to write poems and say \`hello\`.`;
 
 		progress({
 			content: new MarkdownString(response),
@@ -618,6 +620,40 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				}
 			}
 		});
+
+		// Register sheet reading operation
+		this.operationRegistry.registerOperation({
+			id: OPERATION_SHEET_READ,
+			type: 'sheetRead',
+			description: 'Reads a spreadsheet and logs its content',
+			parameterSchema: [{
+				type: 'string',
+				name: 'filePath',
+				description: 'Path to the spreadsheet file',
+				required: true
+			}],
+			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
+				const fileService = accessor.get(IFileService);
+				const logService = accessor.get(ILogService);
+				const filePath = params.find(p => p.name === 'filePath')?.value;
+
+				if (!filePath) {
+					throw new Error('Missing filePath parameter');
+				}
+
+				try {
+					const fileContent = await fileService.readFile(filePath);
+					const workbook = XLSX.read(fileContent.value, { type: 'array' });
+					const firstSheetName = workbook.SheetNames[0];
+					const worksheet = workbook.Sheets[firstSheetName];
+					const jsonData = XLSX.utils.sheet_to_json(worksheet);
+					logService.info('Spreadsheet data:', jsonData);
+				} catch (error) {
+					logService.error('Failed to read spreadsheet:', error);
+					throw new Error(`Failed to read spreadsheet: ${error.message}`);
+				}
+			}
+		});
 	}
 
 	private registerChatAgent(): void {
@@ -653,6 +689,7 @@ registerWorkbenchContribution2(TransformerContribution.ID, TransformerContributi
 export const OPERATION_SET_CONTEXT = 'setContext';
 export const OPERATION_SHOW_DIALOG = 'showDialog';
 export const OPERATION_START_CHAT = 'startChat';
+export const OPERATION_SHEET_READ = 'sheetRead';
 
 
 
