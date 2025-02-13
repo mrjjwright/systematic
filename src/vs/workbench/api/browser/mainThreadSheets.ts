@@ -15,7 +15,7 @@ import { ISheetMutator, SheetCell } from '../../services/sheet/common/sheet.js';
 @extHostNamedCustomer(MainContext.MainThreadSheets)
 export class MainThreadSheets extends Disposable implements MainThreadSheetShape {
 	private readonly proxy: ExtHostSheetShape;
-	private readonly providers = new Map<number, {
+	private readonly mutators = new Map<number, {
 		extensionId: ExtensionIdentifier;
 		disposable: IDisposable;
 	}>();
@@ -34,7 +34,7 @@ export class MainThreadSheets extends Disposable implements MainThreadSheetShape
 		extensionId: ExtensionIdentifier,
 	): void {
 		try {
-			const provider: ISheetMutator = {
+			const mutator: ISheetMutator = {
 				extId: extensionId.value,
 
 				readCell: async (uri: URI, row: number, col: number): Promise<SheetCell> => {
@@ -46,37 +46,37 @@ export class MainThreadSheets extends Disposable implements MainThreadSheetShape
 				},
 
 				dispose: () => {
-					// Provider cleanup logic
+					// Mutator cleanup logic
 				}
 			};
 
-			const disposable = this.sheetService.registerProvider(provider);
-			this.providers.set(handle, {
+			const disposable = this.sheetService.registerMutator(mutator);
+			this.mutators.set(handle, {
 				extensionId,
 				disposable
 			});
 
-			this.logService.trace(`Registered sheet provider ${handle} for extension ${extensionId.value}`);
+			this.logService.trace(`Registered sheet mutator ${handle} for extension ${extensionId.value}`);
 		} catch (error) {
-			this.logService.error('Failed to register sheet provider', error);
+			this.logService.error('Failed to register sheet mutator', error);
 			throw error;
 		}
 	}
 
 	$unregisterSheetMutator(handle: number): void {
-		const registration = this.providers.get(handle);
+		const registration = this.mutators.get(handle);
 		if (registration) {
 			registration.disposable.dispose();
-			this.providers.delete(handle);
-			this.logService.trace(`Unregistered sheet provider ${handle}`);
+			this.mutators.delete(handle);
+			this.logService.trace(`Unregistered sheet mutator ${handle}`);
 		}
 	}
 
 	override dispose(): void {
 		super.dispose();
-		for (const { disposable } of this.providers.values()) {
+		for (const { disposable } of this.mutators.values()) {
 			disposable.dispose();
 		}
-		this.providers.clear();
+		this.mutators.clear();
 	}
 }

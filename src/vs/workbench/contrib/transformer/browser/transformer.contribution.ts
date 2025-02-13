@@ -39,6 +39,8 @@ import {
 import { Event, Emitter } from '../../../../base/common/event.js';
 import { MarkdownString } from '../../../../base/common/htmlContent.js';
 import { ExtensionIdentifier } from '../../../../platform/extensions/common/extensions.js';
+import { ISheetService } from '../../../services/sheet/browser/sheetService.js';
+import { URI } from '../../../../base/common/uri.js';
 
 const transformerViewIcon = registerIcon('transformer-view-icon', Codicon.rocket, localize('transformerViewIcon', 'View icon of the transformer view.'));
 const transformerAiIcon = registerIcon('transformer-ai-icon', Codicon.sparkle, localize('transformerAIIcon', 'AI icon of the transformer view.'));
@@ -82,7 +84,8 @@ export interface ITransformerOperation {
 	| 'uiClear'
 	| 'uiButton'
 	| 'uiText'
-	| 'startChat';  // Add this new type
+	| 'readSheet'
+	| 'startChat';
 	params: ITransformerParam[];
 }
 
@@ -96,7 +99,6 @@ export type IOperationImpl = (accessor: ServicesAccessor, operation: ITransforme
 export interface IOperationDefinition {
 	id: string;
 	description: string;
-	type: string;
 	parameterSchema: {
 		type: 'string' | 'boolean' | 'number';
 		name: string;
@@ -516,7 +518,6 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		// Register show dialog operation
 		this.operationRegistry.registerOperation({
 			id: OPERATION_SHOW_DIALOG,
-			type: 'showDialog',
 			description: 'Shows a dialog to the user',
 			parameterSchema: [{
 				type: 'string',
@@ -540,10 +541,29 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			}
 		});
 
+		// Register read sheet operation
+		this.operationRegistry.registerOperation({
+			id: OPERATION_READ_SHEET,
+			description: 'Reads a cell from a spreadsheet and shows the result in a dialog',
+			parameterSchema: [],
+			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
+				const dialogService = accessor.get(IDialogService);
+				const sheetService = accessor.get(ISheetService);
+
+				try {
+					// Hardcoded path for now - will be made configurable later
+					const uri = URI.file('/Users/jjwright/test.xlsx');
+					const cell = await sheetService.readCell(uri, 0, 0);
+					return dialogService.info('Sheet Cell Value', `Value at (0,0): ${cell.value}`);
+				} catch (err) {
+					return dialogService.error('Error Reading Sheet', err.message);
+				}
+			}
+		});
+
 		// Register set context operation
 		this.operationRegistry.registerOperation({
 			id: OPERATION_SET_CONTEXT,
-			type: 'setContext',
 			description: 'Sets a context key value',
 			parameterSchema: [{
 				type: 'string',
@@ -569,7 +589,6 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		// Register chat operation
 		this.operationRegistry.registerOperation({
 			id: OPERATION_START_CHAT,
-			type: 'startChat',
 			description: 'Starts a chat session with a specific prompt',
 			parameterSchema: [{
 				type: 'string',
@@ -655,7 +674,7 @@ registerWorkbenchContribution2(TransformerContribution.ID, TransformerContributi
 export const OPERATION_SET_CONTEXT = 'setContext';
 export const OPERATION_SHOW_DIALOG = 'showDialog';
 export const OPERATION_START_CHAT = 'startChat';
-export const OPERATION_SHEET_READ = 'sheetRead';
+export const OPERATION_READ_SHEET = 'readSheet';
 
 
 
@@ -753,6 +772,12 @@ export function createHelloWorldProgram(controllerId: string) {
 			description: 'Opens chat and requests a poem',
 			type: 'startChat',
 			params: [] // Using default 'write a poem' prompt
+		},
+		{
+			extId: `${controllerId}${TestIdPathParts.Delimiter}readSheet`,
+			description: 'Reads a cell from a spreadsheet and shows the result in a dialog',
+			type: 'readSheet',
+			params: []
 		}
 	];
 

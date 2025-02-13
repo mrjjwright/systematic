@@ -88,6 +88,7 @@ import './mainThreadShare.js';
 import './mainThreadProfileContentHandlers.js';
 import './mainThreadAiRelatedInformation.js';
 import './mainThreadAiEmbeddingVector.js';
+import './mainThreadSheets.js';
 
 export class ExtensionPoints implements IWorkbenchContribution {
 
