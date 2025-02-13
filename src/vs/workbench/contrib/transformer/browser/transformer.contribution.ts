@@ -552,7 +552,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 				try {
 					// Hardcoded path for now - will be made configurable later
-					const uri = URI.file('/Users/jjwright/test.xlsx');
+					const uri = URI.file('/Users/jjwright/downloads/receipts.xls');
 					const cell = await sheetService.readCell(uri, 0, 0);
 					return dialogService.info('Sheet Cell Value', `Value at (0,0): ${cell.value}`);
 				} catch (err) {

@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { ExcelSheetMutator } from './excelSheetMutator';
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+	console.log('Transformer Sheet Extension - Starting activation');
 	try {
 		// Create and register the sheet mutator
 		const mutator = new ExcelSheetMutator();
@@ -10,7 +11,6 @@ export function activate(context: vscode.ExtensionContext) {
 		// Add to extension subscriptions
 		context.subscriptions.push(disposable);
 
-		console.log('Excel Sheet Mutator activated');
 	} catch (error: any) {
 		console.error('Failed to activate Excel Sheet Mutator:', error?.message);
 		throw error;
