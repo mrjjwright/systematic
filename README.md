@@ -47,7 +47,7 @@ This is why Transformer takes VSCode's proven testing infrastructure,and repurpo
 - "Test results" become "Program results"
 - We can utilize the testing contribution's: 2 "projections", a list or tree projection onto the view, a way for users to see the operations.
 
-These are just examples, there are dozens of ways to utlize the testing contribution. The mapping is clear and easy to understand and since the testing contribution is designed to be very generic anyway, it works well with Transformer's needs.
+These are just examples, there are dozens of ways to utilize the testing contribution. The mapping is clear and easy to understand and since the testing contribution is designed to be very generic anyway, it works well with Transformer's needs.
 
 The beauty of this approach is that we get a robust, well-tested system for managing our operations, complete with:
 

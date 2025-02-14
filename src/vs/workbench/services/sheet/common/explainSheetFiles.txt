@@ -1,0 +1,38 @@
+# workbench internal service root
+src/vs/workbench/services/sheet
+
+# workbench internal types like SheetCell and ISheetMutator
+src/vs/workbench/services/sheet/common/sheet.ts
+
+# workbench internal service browser interface & implementation
+src/vs/workbench/services/sheet/browser/sheetService.ts
+
+# rpc proxy workbench side
+src/vs/workbench/api/browser/mainThreadSheets.ts
+
+# rpc proxy extension host side
+src/vs/workbench/api/common/extHostSheets.ts
+
+# vscode api for sheets
+src/vscode-dts/vscode.proposed.sheet.d.ts
+
+# sets up the actual implementation of the vscode api
+# this is a huge file, as it aggregrates lots of types
+src/vs/workbench/api/common/extHost.api.impl.ts
+
+# defines the actual protocol types between the MainThread (workbench) and ExtensionHost
+# Proxy identifiers, main thread interface shape, ext host interface shape, dtos and other objects are defined here
+src/vs/workbench/api/common/extHost.protocol.ts
+
+# redefines all internal types, for the external api, and extensions
+# types that the sheet extensions use internally from src/vs/workbench/services/sheet/common/sheet.ts
+# also have to be redefined externally here
+# this is a huge file, as it aggregrates lots of types
+src/vs/workbench/api/common/extHostTypes.ts
+
+# converts internal objects with an internal type to external obbjects with external types and vice versa
+# note that SheetCell is currently converted via the type helper UriDto which simply recursively replaces
+# uris with uri components for serialization
+# point is that this file is sometimes not needed for simple conversions
+# this is a huge file, as it aggregrates lots of types
+src/vs/workbench/api/common/extHostTypeConverters.ts
