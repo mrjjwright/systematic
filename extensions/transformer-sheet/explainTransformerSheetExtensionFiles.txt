@@ -4,7 +4,7 @@ src/vs/workbench/services/sheet/common/explainSheet.md
 # explains the files uses in the internal Transformer sheet service
 src/vs/workbench/services/sheet/common/explainSheetFiles.txt
 
-# Main extension entry point that registers the sheet mutator provider
+# Main extension entry point that registers the sheet mutator
 extensions/transformer-sheet/src/extension.ts
 
 # Uses SheetJS to implements the ISheetMutator interface for Excel-like functionality
