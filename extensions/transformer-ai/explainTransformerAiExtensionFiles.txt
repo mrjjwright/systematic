@@ -1,0 +1,11 @@
+# explains the VSCode internal workbench chat service
+src/vs/workbench/contrib/chat/common/explainChatService.md
+
+# Main extension entry point that registers this extensions internal ai classes to vercel ai sdk
+extensions/transformer-ai/src/extension.ts
+
+# Uses Vercel AI SDK to implements the ISheetMutator interface for Excel-like functionality
+extensions/transformer-ai/src/excelSheetMutator.ts
+
+# deep documentation on Vercel AI SDK
+extensions/transformer-ai/explainVercelAiSdk_VsCodeIntegration.md
