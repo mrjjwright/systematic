@@ -13,7 +13,28 @@
   ],
   "main": "./out/extension.js",
   "capabilities": {
-    "sheet": true
+    "chat": true
+  },
+  "enabledApiProposals": [
+    "chatProvider",
+    "defaultChatParticipant"
+  ],
+  "contributes": {
+    "languageModels": [
+      {
+        "vendor": "transformer"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "transformer.ai",
+        "name": "assistant",
+        "fullName": "Transformer AI",
+        "description": "Transformer's chat participant",
+        "isSticky": true,
+        "isDefault": true
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./",
@@ -22,7 +43,8 @@
     "test": "node ./out/test/runTest.js"
   },
   "dependencies": {
-    "ai": "^4.1.40"
+    "ai": "^4.1.40",
+    "@ai-sdk/openai": "1.1.11"
   },
   "devDependencies": {
     "@types/node": "^16.x",

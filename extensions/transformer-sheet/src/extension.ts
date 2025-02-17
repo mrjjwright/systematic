@@ -7,7 +7,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Create and register the sheet mutator
 		const mutator = new ExcelSheetMutator();
 		const disposable = vscode.sheets.registerSheetMutator(mutator);
-
 		// Add to extension subscriptions
 		context.subscriptions.push(disposable);
 

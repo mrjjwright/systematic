@@ -1,0 +1,39 @@
+# explains the VSCode internal workbench chat service
+src/vs/workbench/contrib/chat/common/explainChatService.md
+
+# Main extension entry point that registers this extensions internal ai classes to vercel ai sdk
+extensions/transformer-ai/src/extension.ts
+
+# Uses Vercel AI SDK to implements the ISheetMutator interface for Excel-like functionality
+extensions/transformer-ai/src/excelSheetMutator.ts
+
+# deep documentation on Vercel AI SDK
+extensions/transformer-ai/explainVercelAiSdk_VsCodeIntegration.md
+
+# grep of src/vscode-dts/vscode.d.ts for "chat" in order to understand the internal chat api
+extensions/transformer-ai/grepChatVscodedts.txt
+
+# defines the core chat provider interface for implementing custom chat providers
+src/vscode-dts/vscode.proposed.chatProvider.d.ts
+
+# provides APIs for programmatically editing chat content and responses
+src/vscode-dts/vscode.proposed.chatEditing.d.ts
+
+# defines interfaces for handling read-only prompt references in chat
+src/vscode-dts/vscode.proposed.chatReadonlyPromptReference.d.ts
+
+# enables working with binary data (images, files) in chat interactions
+src/vscode-dts/vscode.proposed.chatReferenceBinaryData.d.ts
+
+# provides interfaces for managing chat tabs and their behavior
+src/vscode-dts/vscode.proposed.chatTab.d.ts
+
+# defines private chat participant functionality not exposed publicly
+src/vscode-dts/vscode.proposed.chatParticipantPrivate.d.ts
+
+# contains additional chat participant features and extensions
+src/vscode-dts/vscode.proposed.chatParticipantAdditions.d.ts
+
+# type definitions for the AI SDK UI utilities, including interfaces for chat messages, streams, and usage
+extensions/transformer-ai/node_modules/@ai-sdk/ui-utils/dist/index.d.ts
+
