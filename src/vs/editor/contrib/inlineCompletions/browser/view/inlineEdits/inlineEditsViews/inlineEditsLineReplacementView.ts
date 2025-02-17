@@ -21,9 +21,9 @@ import { IModelDecorationOptions, TrackedRangeStickiness } from '../../../../../
 import { LineTokens } from '../../../../../../common/tokens/lineTokens.js';
 import { TokenArray } from '../../../../../../common/tokens/tokenArray.js';
 import { InlineDecoration, InlineDecorationType } from '../../../../../../common/viewModel.js';
-import { IInlineEditsView } from '../inlineEditsViewInterface.js';
+import { IInlineEditsView, IInlineEditsViewHost } from '../inlineEditsViewInterface.js';
 import { getModifiedBorderColor, modifiedChangedLineBackgroundColor } from '../theme.js';
-import { getPrefixTrim, InlineEditTabAction, mapOutFalsy, rectToProps } from '../utils/utils.js';
+import { getPrefixTrim, mapOutFalsy, rectToProps } from '../utils/utils.js';
 import { rangesToBubbleRanges, Replacement } from './inlineEditsWordReplacementView.js';
 
 export class InlineEditsLineReplacementView extends Disposable implements IInlineEditsView {
@@ -189,7 +189,7 @@ export class InlineEditsLineReplacementView extends Disposable implements IInlin
 				l.style.position = 'relative';
 			});
 
-			const modifiedBorderColor = getModifiedBorderColor(this._tabAction).read(reader);
+			const modifiedBorderColor = getModifiedBorderColor(this._host.tabAction).read(reader);
 
 			return [
 				n.div({
@@ -216,13 +216,14 @@ export class InlineEditsLineReplacementView extends Disposable implements IInlin
 					n.div({
 						style: {
 							position: 'absolute',
-							...rectToProps(reader => layout.read(reader).lowerBackground.moveLeft(contentLeft)),
+							...rectToProps(reader => layout.read(reader).lowerBackground.translateX(-contentLeft)),
 							borderRadius: '4px',
 							background: asCssVariable(editorBackground),
 							boxShadow: `${asCssVariable(scrollbarShadow)} 0 6px 6px -6px`,
 							borderTop: `1px solid ${modifiedBorderColor}`,
 							overflow: 'hidden',
 						},
+						//onmouseup: () => this._host.accept(),
 					}, [
 						n.div({
 							style: {
@@ -240,7 +241,7 @@ export class InlineEditsLineReplacementView extends Disposable implements IInlin
 							position: 'absolute',
 							padding: '0px',
 							boxSizing: 'border-box',
-							...rectToProps(reader => layout.read(reader).lowerText.moveLeft(contentLeft)),
+							...rectToProps(reader => layout.read(reader).lowerText.translateX(-contentLeft)),
 							fontFamily: this._editor.getOption(EditorOption.fontFamily),
 							fontSize: this._editor.getOption(EditorOption.fontSize),
 							fontWeight: this._editor.getOption(EditorOption.fontWeight),
@@ -250,7 +251,7 @@ export class InlineEditsLineReplacementView extends Disposable implements IInlin
 					n.div({
 						style: {
 							position: 'absolute',
-							...rectToProps(reader => layout.read(reader).background.moveLeft(contentLeft)),
+							...rectToProps(reader => layout.read(reader).background.translateX(-contentLeft)),
 							borderRadius: '4px',
 
 							border: `1px solid ${modifiedBorderColor}`,
@@ -263,9 +264,7 @@ export class InlineEditsLineReplacementView extends Disposable implements IInlin
 		})
 	]).keepUpdated(this._store);
 
-	readonly isHovered = derived(this, reader => {
-		return this._div.getIsHovered(this._store).read(reader);
-	});
+	readonly isHovered = this._div.didMouseMoveDuringHover;
 
 	constructor(
 		private readonly _editor: ObservableCodeEditor,
@@ -275,7 +274,7 @@ export class InlineEditsLineReplacementView extends Disposable implements IInlin
 			modifiedLines: string[];
 			replacements: Replacement[];
 		} | undefined>,
-		private readonly _tabAction: IObservable<InlineEditTabAction>,
+		private readonly _host: IInlineEditsViewHost,
 		@ILanguageService private readonly _languageService: ILanguageService
 	) {
 		super();
