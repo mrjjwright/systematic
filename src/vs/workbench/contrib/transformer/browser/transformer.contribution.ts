@@ -510,7 +510,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				// Show the chat view panel first
 				await layoutService.setPartHidden(false, Parts.AUXILIARYBAR_PART);
 
-				if (!chatService.isEnabled(ChatAgentLocation.Editor)) {
+				if (!chatService.isEnabled(ChatAgentLocation.Panel)) {
 					throw new Error('Chat is not available');
 				}
 

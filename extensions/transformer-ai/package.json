@@ -28,7 +28,7 @@
     "chatParticipants": [
       {
         "id": "transformer.ai",
-        "name": "assistant",
+        "name": "transformer",
         "fullName": "Transformer AI",
         "description": "Transformer's chat participant",
         "isSticky": true,

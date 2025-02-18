@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
-import { TransformerAi, TransformerChatParticipant } from './transformerAi.js';
+import { TransformerLanguageModel, TransformerChatParticipant } from './transformerAi.js';
+
+const outputChannel = vscode.window.createOutputChannel('Transformer');
 
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('Transformer AI Extension - Starting activation');
 	try {
 		// Create and register the language model provider
-		const provider = new TransformerAi();
+		const provider = new TransformerLanguageModel(outputChannel);
 		const metadata: vscode.ChatResponseProviderMetadata = {
 			vendor: 'transformer',
 			name: 'Transformer AI',
@@ -24,7 +26,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Register the language model provider
 
 		// Create and register the chat participant
-		const chatParticipant = new TransformerChatParticipant();
+		const chatParticipant = new TransformerChatParticipant(outputChannel);
 		const participant = vscode.chat.createChatParticipant(
 			'transformer.ai',
 			chatParticipant.handleRequest.bind(chatParticipant)

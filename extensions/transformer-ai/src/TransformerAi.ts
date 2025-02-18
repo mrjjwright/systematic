@@ -5,17 +5,72 @@ import {
 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-/**
- * TransformerAi implements the LanguageModelChatProvider interface to provide
- * AI language model capabilities using the OpenAI API.
- */
-export class TransformerAi implements vscode.LanguageModelChatProvider {
+export type ValueCallback<T = unknown> = (value: T | Promise<T>) => void;
+
+export class DeferredPromise<T> {
+
+	private completeCallback!: ValueCallback<T>;
+	private errorCallback!: (err: unknown) => void;
+	private rejected = false;
+	private resolved = false;
+
+	public get isRejected() {
+		return this.rejected;
+	}
+
+	public get isResolved() {
+		return this.resolved;
+	}
+
+	public get isSettled() {
+		return this.rejected || this.resolved;
+	}
+
+	public readonly p: Promise<T>;
+
+	constructor() {
+		this.p = new Promise<T>((c, e) => {
+			this.completeCallback = c;
+			this.errorCallback = e;
+		});
+	}
+
+	public complete(value: T) {
+		return new Promise<void>(resolve => {
+			this.completeCallback(value);
+			this.resolved = true;
+			resolve();
+		});
+	}
+
+	public error(err: unknown) {
+		return new Promise<void>(resolve => {
+			this.errorCallback(err);
+			this.rejected = true;
+			resolve();
+		});
+	}
+
+	public cancel() {
+		new Promise<void>(resolve => {
+			this.errorCallback(new Error('Canceled'));
+			this.rejected = true;
+			resolve();
+		});
+	}
+}
+
+
+
+export class TransformerLanguageModel implements vscode.LanguageModelChatProvider {
 	private model: LanguageModel;
 	private readonly _onDidReceiveLanguageModelResponse2 = new vscode.EventEmitter<{ readonly extensionId: string; readonly participant?: string; readonly tokenCount?: number }>();
 	readonly onDidReceiveLanguageModelResponse2 = this._onDidReceiveLanguageModelResponse2.event;
 
-	constructor(modelId: string = 'gpt-3.5-turbo') {
-		const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
+	constructor(public readonly outputChannel: vscode.OutputChannel, modelId: string = 'gpt-3.5-turbo') {
+		const openai = createOpenAI({
+			apiKey: process.env['OPENAI_API_KEY'],
+		});
 		this.model = openai(modelId);
 	}
 
@@ -26,40 +81,65 @@ export class TransformerAi implements vscode.LanguageModelChatProvider {
 		progress: vscode.Progress<vscode.ChatResponseFragment2>,
 		token: vscode.CancellationToken
 	): Promise<any> {
-		let currentIndex = 0;
-		let totalText = '';
+		const defer = new DeferredPromise<void>();
 
+		// Handle cancellation
+		token.onCancellationRequested(() => {
+			defer.cancel();
+		});
 		try {
-			const prompt = messages.map(msg => `${msg.role}: ${msg.content}`).join('\n');
+			await this._provideLanguageModelResponse(
+				messages,
+				progress,
+			);
 
-			const result = await streamText({
-				model: this.model,
-				prompt,
-				onChunk: async ({ chunk }) => {
-					if (token.isCancellationRequested) {
-						return;
-					}
-
-					if (chunk.type === 'text-delta') {
-						totalText += chunk.textDelta;
-						progress.report({
-							index: currentIndex++,
-							part: new vscode.LanguageModelTextPart(chunk.textDelta)
-						});
-					}
-				}
-			});
-
-			// Fire completion event with token count
-			this._onDidReceiveLanguageModelResponse2.fire({
-				extensionId,
-				tokenCount: totalText.split(/\s+/).length
-			});
-
-			return result;
+			defer.complete();
+			this._onDidReceiveLanguageModelResponse2.fire({ extensionId });
 
 		} catch (error) {
-			throw new Error(`TransformerAI error: ${(error as Error).message}`);
+			this.outputChannel.appendLine(`ERROR: ${error}`);
+			defer.error(error);
+			throw error;
+		}
+		return defer.p;
+	}
+
+	private async _provideLanguageModelResponse(
+		messages: vscode.LanguageModelChatMessage[],
+		progress: vscode.Progress<vscode.ChatResponseFragment2>,
+	) {
+		let currentIndex = 0;
+
+		try {
+			const prompt = messages.map(msg =>
+				msg.content
+					.filter((part): part is vscode.LanguageModelTextPart => part instanceof vscode.LanguageModelTextPart)
+					.map(part => part.value)
+					.join('')
+			).join('\n');
+
+			const { textStream } = streamText({
+				model: this.model,
+				prompt,
+			});
+
+			let responseText = '';
+
+			for await (const textPart of textStream) {
+				responseText += textPart;
+			}
+			progress.report({
+				index: currentIndex++,
+				part: new vscode.LanguageModelTextPart(responseText)
+			});
+
+
+		} catch (error) {
+			this.outputChannel.appendLine(`TransformerLM error: ${error}`);
+
+			if (error instanceof vscode.LanguageModelError) {
+				throw error;
+			}
 		}
 	}
 
@@ -71,8 +151,20 @@ export class TransformerAi implements vscode.LanguageModelChatProvider {
 			return 0;
 		}
 
-		const content = typeof text === 'string' ? text : text.content;
-		return typeof content === 'string' ? content.split(/\s+/).length : 0;
+		try {
+			const content = typeof text === 'string' ? text : text.content;
+			if (typeof content !== 'string') {
+				return 0;
+			}
+
+			// Use the model's tokenizer if available
+			// For now using a more accurate approximation than simple word split
+			// This should be replaced with actual tokenizer when available
+			return Math.ceil(content.length / 4); // Rough approximation of GPT tokens
+		} catch (error) {
+			this.outputChannel.appendLine(`Token count error: ${error}`);
+			return 0;
+		}
 	}
 }
 
@@ -80,7 +172,7 @@ export class TransformerAi implements vscode.LanguageModelChatProvider {
  * Chat participant that uses the Transformer AI language model to handle requests.
  */
 export class TransformerChatParticipant {
-	constructor() { }
+	constructor(public readonly outputChannel: vscode.OutputChannel) { }
 
 	private getInitialContext(): vscode.LanguageModelChatMessage {
 		return vscode.LanguageModelChatMessage.User(
@@ -95,6 +187,7 @@ export class TransformerChatParticipant {
 		token: vscode.CancellationToken
 	): Promise<vscode.ChatResult> {
 		try {
+			this.outputChannel.appendLine(`Yoyo: ${JSON.stringify(request)}`);
 			// Get the language model from the request
 			const model = request.model as vscode.LanguageModelChat;
 			if (!model) {
@@ -134,19 +227,9 @@ export class TransformerChatParticipant {
 				response.progress(`Processing ${request.command} command...`);
 			}
 
-			// Send the request to the language model
-			response.progress('Thinking...' + JSON.stringify(messages));
 			const result = await model.sendRequest(messages, options, token);
-			response.progress('Thinking1...' + JSON.stringify(result));
 
-			// Stream the response back
 			for await (const part of result.text) {
-				response.progress('Thinking2...');
-
-				if (token.isCancellationRequested) {
-					break;
-				}
-
 				response.markdown(part);
 
 			}
@@ -154,7 +237,7 @@ export class TransformerChatParticipant {
 			return {};
 		} catch (error) {
 			const err = error as Error;
-			response.progress('Ooops, something went wrong');
+			this.outputChannel.appendLine('Transformer erro: Ooops, something went wrong');
 			response.markdown(err.message);
 			return {};
 		}
