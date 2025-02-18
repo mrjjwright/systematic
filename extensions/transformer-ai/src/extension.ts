@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { TransformerLanguageModel, TransformerChatParticipant } from './transformerAi.js';
+import { TransformerLanguageModel, TransformerChatParticipant } from './transformerAiProvider.js';
 
 const outputChannel = vscode.window.createOutputChannel('Transformer');
 
