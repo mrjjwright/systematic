@@ -9,7 +9,6 @@ import { IDisposable } from '../../../../base/common/lifecycle.js';
 import { ResourceMap } from '../../../../base/common/map.js';
 import { IObservable, IReader, ITransaction } from '../../../../base/common/observable.js';
 import { URI } from '../../../../base/common/uri.js';
-import { IDocumentDiff } from '../../../../editor/common/diff/documentDiffProvider.js';
 import { TextEdit } from '../../../../editor/common/languages.js';
 import { localize } from '../../../../nls.js';
 import { RawContextKey } from '../../../../platform/contextkey/common/contextkey.js';
@@ -42,7 +41,7 @@ export interface IChatEditingService {
 
 	hasRelatedFilesProviders(): boolean;
 	registerRelatedFilesProvider(handle: number, provider: IChatRelatedFilesProvider): IDisposable;
-	getRelatedFiles(chatSessionId: string, prompt: string, token: CancellationToken): Promise<{ group: string; files: IChatRelatedFile[] }[] | undefined>;
+	getRelatedFiles(chatSessionId: string, prompt: string, files: URI[], token: CancellationToken): Promise<{ group: string; files: IChatRelatedFile[] }[] | undefined>;
 
 	//#endregion
 }
@@ -79,6 +78,8 @@ export interface IStreamingEdits {
 	complete(): void;
 }
 
+export const chatEditingSnapshotScheme = 'chat-editing-snapshot-text-model';
+
 export interface IChatEditingSession extends IDisposable {
 	readonly isGlobalEditingSession: boolean;
 	readonly chatSessionId: string;
@@ -87,7 +88,7 @@ export interface IChatEditingSession extends IDisposable {
 	readonly state: IObservable<ChatEditingSessionState>;
 	readonly entries: IObservable<readonly IModifiedFileEntry[]>;
 	readonly workingSet: ResourceMap<WorkingSetDisplayMetadata>;
-	addFileToWorkingSet(uri: URI, description?: string, kind?: WorkingSetEntryState.Transient | WorkingSetEntryState.Suggested): void;
+	addFileToWorkingSet(uri: URI, description?: string, kind?: WorkingSetEntryState.Suggested): void;
 	show(): Promise<void>;
 	remove(reason: WorkingSetEntryRemovalReason, ...uris: URI[]): void;
 	markIsReadonly(uri: URI, isReadonly?: boolean): void;
@@ -97,7 +98,12 @@ export interface IChatEditingSession extends IDisposable {
 	readEntry(uri: URI, reader?: IReader): IModifiedFileEntry | undefined;
 
 	restoreSnapshot(requestId: string, stopId: string | undefined): Promise<void>;
-	getSnapshotUri(requestId: string, uri: URI): URI | undefined;
+
+	/**
+	 * Gets the snapshot URI of a file at the request and _after_ changes made in the undo stop.
+	 * @param uri File in the workspace
+	 */
+	getSnapshotUri(requestId: string, uri: URI, stopId: string | undefined): URI | undefined;
 
 	/**
 	 * Will lead to this object getting disposed
@@ -117,12 +123,27 @@ export interface IChatEditingSession extends IDisposable {
 	 * the next one.
 	 * @returns The observable or undefined if there is no diff between the stops.
 	 */
-	getEntryDiffBetweenStops(uri: URI, requestId: string, stopId: string | undefined): IObservable<IDocumentDiff | undefined> | undefined;
+	getEntryDiffBetweenStops(uri: URI, requestId: string, stopId: string | undefined): IObservable<IEditSessionEntryDiff | undefined> | undefined;
 
 	readonly canUndo: IObservable<boolean>;
 	readonly canRedo: IObservable<boolean>;
 	undoInteraction(): Promise<void>;
 	redoInteraction(): Promise<void>;
+}
+
+export interface IEditSessionEntryDiff {
+	/** LHS and RHS of a diff editor, if opened: */
+	originalURI: URI;
+	modifiedURI: URI;
+
+	/** Diff state information: */
+	quitEarly: boolean;
+	identical: boolean;
+
+	/** Added data (e.g. line numbers) to show in the UI */
+	added: number;
+	/** Removed data (e.g. line numbers) to show in the UI */
+	removed: number;
 }
 
 export const enum WorkingSetEntryRemovalReason {
@@ -134,7 +155,7 @@ export const enum WorkingSetEntryState {
 	Modified,
 	Accepted,
 	Rejected,
-	Transient,
+	Transient, // TODO@joyceerhl remove this
 	Attached,
 	Sent, // TODO@joyceerhl remove this
 	Suggested,
@@ -209,11 +230,6 @@ export interface IModifiedFileEntry {
 	readonly state: IObservable<WorkingSetEntryState>;
 	readonly isCurrentlyBeingModifiedBy: IObservable<IChatResponseModel | undefined>;
 	readonly rewriteRatio: IObservable<number>;
-
-	/**
-	 * @deprecated
-	 */
-	readonly diffInfo: IObservable<IDocumentDiff>;
 
 	accept(transaction: ITransaction | undefined): Promise<void>;
 	reject(transaction: ITransaction | undefined): Promise<void>;
