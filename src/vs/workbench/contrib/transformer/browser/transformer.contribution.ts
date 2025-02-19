@@ -4,7 +4,7 @@ import { ILogService } from '../../../../platform/log/common/log.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../common/contributions.js';
 import { ViewPane } from '../../../browser/parts/views/viewPane.js';
 import { ViewPaneContainer } from '../../../browser/parts/views/viewPaneContainer.js';
-import { IWorkbenchLayoutService, Parts } from '../../../services/layout/browser/layoutService.js';
+import { IWorkbenchLayoutService, } from '../../../services/layout/browser/layoutService.js';
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
@@ -32,6 +32,7 @@ import {
 } from '../../../contrib/chat/common/chatAgents.js';
 import { ISheetService } from '../../../services/sheet/browser/sheetService.js';
 import { URI } from '../../../../base/common/uri.js';
+import { ShowChatAction } from '../../chat/browser/actions/extend_chatActions.js';
 
 const transformerViewIcon = registerIcon('transformer-view-icon', Codicon.rocket, localize('transformerViewIcon', 'View icon of the transformer view.'));
 
@@ -506,9 +507,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			}],
 			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
 				const chatService = accessor.get(IChatService);
-				const layoutService = accessor.get(IWorkbenchLayoutService);
-				// Show the chat view panel first
-				await layoutService.setPartHidden(false, Parts.AUXILIARYBAR_PART);
+				const instantiationService = accessor.get(IInstantiationService);
 
 				if (!chatService.isEnabled(ChatAgentLocation.Panel)) {
 					throw new Error('Chat is not available');
@@ -518,6 +517,13 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				const session = chatService.startSession(ChatAgentLocation.Panel, CancellationToken.None);
 				await session.waitForInitialization();
 
+				// Use ShowChatAction to display the chat
+				try {
+					const showChatAction = instantiationService.createInstance(ShowChatAction);
+					instantiationService.invokeFunction(showChatAction.run, { sessionId: session.sessionId });
+				} catch (err) {
+					this.logService.error('Error displaying chat', err);
+				}
 
 				// Get prompt and prepare request
 				const prompt = params.find(p => p.name === 'prompt')?.value ?? 'write a poem';

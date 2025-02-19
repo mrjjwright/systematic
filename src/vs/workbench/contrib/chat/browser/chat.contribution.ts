@@ -93,6 +93,7 @@ import { ChatRelatedFilesContribution } from './contrib/chatInputRelatedFilesCon
 import { LanguageModelToolsService } from './languageModelToolsService.js';
 import { ChatViewsWelcomeHandler } from './viewsWelcome/chatViewsWelcomeHandler.js';
 import { ChatEditingEditorContextKeys } from './chatEditing/chatEditingEditorContextKeys.js';
+import { register_extendChatActions } from './actions/extend_chatActions.js';
 
 // Register configuration
 const configurationRegistry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration);
@@ -415,6 +416,7 @@ registerWorkbenchContribution2(ChatEditingEditorOverlay.ID, ChatEditingEditorOve
 registerWorkbenchContribution2(ChatEditingEditorContextKeys.ID, ChatEditingEditorContextKeys, WorkbenchPhase.AfterRestored);
 
 registerChatActions();
+register_extendChatActions();
 registerChatCopyActions();
 registerChatCodeBlockActions();
 registerChatCodeCompareBlockActions();
