@@ -68,6 +68,7 @@ export class TransformerLanguageModel implements vscode.LanguageModelChatProvide
 	readonly onDidReceiveLanguageModelResponse2 = this._onDidReceiveLanguageModelResponse2.event;
 
 	constructor(public readonly outputChannel: vscode.OutputChannel, modelId: string = 'gpt-3.5-turbo') {
+		outputChannel.appendLine(`Creating model: ${modelId} with apiKey: ${process.env['OPENAI_API_KEY']?.substring(0, 5)}`);
 		const openai = createOpenAI({
 			apiKey: process.env['OPENAI_API_KEY'],
 		});

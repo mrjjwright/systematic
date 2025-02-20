@@ -1,10 +1,19 @@
 import * as vscode from 'vscode';
+import { config } from 'dotenv';
+import * as path from 'path';
 import { TransformerLanguageModel, TransformerChatParticipant } from './transformerAiProvider.js';
 
+// Load environment variables from .env file
+config({ path: path.join(__dirname, '..', '.env') });
+
+// Debug logging for environment variables
 const outputChannel = vscode.window.createOutputChannel('Transformer');
 
 export async function activate(context: vscode.ExtensionContext) {
-	console.log('Transformer AI Extension - Starting activation');
+	outputChannel.appendLine('Transformer AI Extension - Starting activation');
+	outputChannel.appendLine(`Env file path: ${path.join(__dirname, '..', '.env')}`);
+	outputChannel.appendLine(`OPENAI_API_KEY loaded: ${process.env.OPENAI_API_KEY ? 'Yes (first 5 chars: ' + process.env.OPENAI_API_KEY.substring(0, 5) + ')' : 'No'}`);
+
 	try {
 		// Create and register the language model provider
 		const provider = new TransformerLanguageModel(outputChannel);
