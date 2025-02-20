@@ -213,7 +213,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 	const extHostUriOpeners = rpcProtocol.set(ExtHostContext.ExtHostUriOpeners, new ExtHostUriOpeners(rpcProtocol));
 	const extHostProfileContentHandlers = rpcProtocol.set(ExtHostContext.ExtHostProfileContentHandlers, new ExtHostProfileContentHandlers(rpcProtocol));
 	rpcProtocol.set(ExtHostContext.ExtHostInteractive, new ExtHostInteractive(rpcProtocol, extHostNotebook, extHostDocumentsAndEditors, extHostCommands, extHostLogService));
-	const extHostChatAgents2 = rpcProtocol.set(ExtHostContext.ExtHostChatAgents2, new ExtHostChatAgents2(rpcProtocol, extHostLogService, extHostCommands, extHostDocuments, extHostLanguageModels));
+	const extHostChatAgents2 = rpcProtocol.set(ExtHostContext.ExtHostChatAgents2, new ExtHostChatAgents2(rpcProtocol, extHostLogService, extHostCommands, extHostDocuments, extHostLanguageModels, extHostDiagnostics));
 	const extHostLanguageModelTools = rpcProtocol.set(ExtHostContext.ExtHostLanguageModelTools, new ExtHostLanguageModelTools(rpcProtocol));
 	const extHostAiRelatedInformation = rpcProtocol.set(ExtHostContext.ExtHostAiRelatedInformation, new ExtHostRelatedInformation(rpcProtocol));
 	const extHostAiEmbeddingVector = rpcProtocol.set(ExtHostContext.ExtHostAiEmbeddingVector, new ExtHostAiEmbeddingVector(rpcProtocol));
@@ -1026,10 +1026,14 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			set textDocuments(value) {
 				throw new errors.ReadonlyError('textDocuments');
 			},
-			openTextDocument(uriOrFileNameOrOptions?: vscode.Uri | string | { language?: string; content?: string }) {
+			openTextDocument(uriOrFileNameOrOptions?: vscode.Uri | string | { language?: string; content?: string; encoding?: string }, options?: { encoding?: string }) {
 				let uriPromise: Thenable<URI>;
 
-				const options = uriOrFileNameOrOptions as { language?: string; content?: string };
+				options = (options ?? uriOrFileNameOrOptions) as ({ language?: string; content?: string; encoding?: string } | undefined);
+				if (typeof options?.encoding === 'string') {
+					checkProposedApiEnabled(extension, 'textDocumentEncoding');
+				}
+
 				if (typeof uriOrFileNameOrOptions === 'string') {
 					uriPromise = Promise.resolve(URI.file(uriOrFileNameOrOptions));
 				} else if (URI.isUri(uriOrFileNameOrOptions)) {
@@ -1045,7 +1049,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 					if (uri.scheme === initData.environment.appUriScheme) {
 						extHostApiDeprecation.report('workspace.openTextDocument', extension, `A URI of '${initData.environment.appUriScheme}' scheme requires an authority.`);
 					}
-					return extHostDocuments.ensureDocumentData(uri).then(documentData => {
+					return extHostDocuments.ensureDocumentData(uri, options).then(documentData => {
 						return documentData.document;
 					});
 				});
@@ -1554,6 +1558,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			ChatResultFeedbackKind: extHostTypes.ChatResultFeedbackKind,
 			ChatVariableLevel: extHostTypes.ChatVariableLevel,
 			ChatCompletionItem: extHostTypes.ChatCompletionItem,
+			ChatReferenceDiagnostic: extHostTypes.ChatReferenceDiagnostic,
 			CallHierarchyIncomingCall: extHostTypes.CallHierarchyIncomingCall,
 			CallHierarchyItem: extHostTypes.CallHierarchyItem,
 			CallHierarchyOutgoingCall: extHostTypes.CallHierarchyOutgoingCall,
