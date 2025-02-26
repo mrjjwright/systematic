@@ -203,8 +203,15 @@ export interface IChatConfirmation {
 	kind: 'confirmation';
 }
 
+export interface IChatTerminalToolInvocationData {
+	kind: 'terminal';
+	command: string;
+	language: string;
+}
+
 export interface IChatToolInvocation {
 	presentation: IPreparedToolInvocation['presentation'];
+	toolSpecificData?: IChatTerminalToolInvocationData;
 	/** Presence of this property says that confirmation is required */
 	confirmationMessages?: IToolConfirmationMessages;
 	confirmed: DeferredPromise<boolean>;
@@ -212,7 +219,6 @@ export interface IChatToolInvocation {
 	isConfirmed: boolean | undefined;
 	invocationMessage: string | IMarkdownString;
 	pastTenseMessage: string | IMarkdownString | undefined;
-	tooltip: string | IMarkdownString | undefined;
 	resultDetails: IToolResult['toolResultDetails'];
 
 	isCompletePromise: Promise<void>;
@@ -226,10 +232,10 @@ export interface IChatToolInvocation {
  */
 export interface IChatToolInvocationSerialized {
 	presentation: IPreparedToolInvocation['presentation'];
+	toolSpecificData?: IChatTerminalToolInvocationData;
 	invocationMessage: string | IMarkdownString;
 	pastTenseMessage: string | IMarkdownString | undefined;
 	resultDetails: IToolResult['toolResultDetails'];
-	tooltip: string | IMarkdownString | undefined;
 	isConfirmed: boolean | undefined;
 	isComplete: boolean;
 	kind: 'toolInvocationSerialized';
@@ -397,6 +403,8 @@ export interface IChatProviderInfo {
 export interface IChatTransferredSessionData {
 	sessionId: string;
 	inputValue: string;
+	location: ChatAgentLocation;
+	toolsAgentModeEnabled: boolean;
 }
 
 export interface IChatSendRequestResponseState {
@@ -459,6 +467,8 @@ export const IChatService = createDecorator<IChatService>('IChatService');
 export interface IChatService {
 	_serviceBrand: undefined;
 	transferredSessionData: IChatTransferredSessionData | undefined;
+
+	onDidSubmitRequest: Event<{ chatSessionId: string }>;
 
 	isEnabled(location: ChatAgentLocation): boolean;
 	hasSessions(): boolean;

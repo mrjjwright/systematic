@@ -11,7 +11,6 @@ import { Codicon } from '../../../../base/common/codicons.js';
 import { IDisposable } from '../../../../base/common/lifecycle.js';
 import { Mimes } from '../../../../base/common/mime.js';
 import { basename, joinPath } from '../../../../base/common/resources.js';
-import { Mutable } from '../../../../base/common/types.js';
 import { URI } from '../../../../base/common/uri.js';
 import { IRange } from '../../../../editor/common/core/range.js';
 import { SymbolKinds } from '../../../../editor/common/languages.js';
@@ -30,7 +29,8 @@ import { UntitledTextEditorInput } from '../../../services/untitled/common/untit
 import { IChatRequestVariableEntry, IDiagnosticVariableEntry, IDiagnosticVariableEntryFilterData, ISymbolVariableEntry } from '../common/chatModel.js';
 import { ChatAttachmentModel } from './chatAttachmentModel.js';
 import { IChatInputStyles } from './chatInputPart.js';
-import { resizeImage } from './imageUtils.js';
+import { imageToHash } from './chatPasteProviders.js';
+import { convertStringToUInt8Array, resizeImage } from './imageUtils.js';
 
 enum ChatDragAndDropType {
 	FILE_INTERNAL,
@@ -38,6 +38,7 @@ enum ChatDragAndDropType {
 	FOLDER,
 	IMAGE,
 	SYMBOL,
+	HTML,
 	MARKER,
 }
 
@@ -170,6 +171,8 @@ export class ChatDragAndDrop extends Themable {
 		// This is an esstimation based on the datatransfer types/items
 		if (this.isImageDnd(e)) {
 			return this.extensionService.extensions.some(ext => isProposedApiEnabled(ext, 'chatReferenceBinaryData')) ? ChatDragAndDropType.IMAGE : undefined;
+		} else if (containsDragType(e, 'text/html')) {
+			return ChatDragAndDropType.HTML;
 		} else if (containsDragType(e, CodeDataTransfers.SYMBOLS)) {
 			return ChatDragAndDropType.SYMBOL;
 		} else if (containsDragType(e, CodeDataTransfers.MARKERS)) {
@@ -199,6 +202,7 @@ export class ChatDragAndDrop extends Themable {
 			case ChatDragAndDropType.IMAGE: return localize('image', 'Image');
 			case ChatDragAndDropType.SYMBOL: return localize('symbol', 'Symbol');
 			case ChatDragAndDropType.MARKER: return localize('problem', 'Problem');
+			case ChatDragAndDropType.HTML: return localize('url', 'URL');
 		}
 	}
 
@@ -238,6 +242,11 @@ export class ChatDragAndDrop extends Themable {
 		if (containsDragType(e, CodeDataTransfers.SYMBOLS)) {
 			const data = extractSymbolDropData(e);
 			return this.resolveSymbolsAttachContext(data);
+		}
+
+		if (containsDragType(e, 'text/html')) {
+			const data = e.dataTransfer?.getData('text/html');
+			return data ? this.resolveHTMLAttachContext(data) : [];
 		}
 
 		const data = extractEditorsDropData(e);
@@ -315,28 +324,67 @@ export class ChatDragAndDrop extends Themable {
 		});
 	}
 
+	private async resolveHTMLAttachContext(data: string): Promise<IChatRequestVariableEntry[]> {
+		const displayName = localize('dragAndDroppedImageName', 'Image from URL');
+		let finalDisplayName = displayName;
+
+		for (let appendValue = 2; this.attachmentModel.attachments.some(attachment => attachment.name === finalDisplayName); appendValue++) {
+			finalDisplayName = `${displayName} ${appendValue}`;
+		}
+
+		const { src, alt } = extractImageAttributes(data);
+		finalDisplayName = alt ?? finalDisplayName;
+
+		if (/^data:image\/[a-z]+;base64,/.test(src)) {
+			const resizedImage = await resizeImage(src);
+			return [{
+				id: await imageToHash(resizedImage),
+				name: finalDisplayName,
+				value: resizedImage,
+				isImage: true,
+				isFile: false,
+				isDirectory: false
+			}];
+		} else if (/^https?:\/\/.+/.test(src)) {
+			const url = new URL(src);
+			const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url.pathname);
+			if (isImage) {
+				const buffer = convertStringToUInt8Array(src);
+				return [{
+					kind: 'image',
+					id: url.toString(),
+					name: finalDisplayName,
+					value: buffer,
+					isImage,
+					isFile: false,
+					isDirectory: false,
+					isURL: true,
+				}];
+			} else {
+				return [{
+					kind: 'link',
+					id: url.toString(),
+					name: finalDisplayName,
+					value: URI.parse(url.toString()),
+					isFile: false,
+					isDirectory: false,
+				}];
+			}
+		}
+		return [];
+	}
+
 	private resolveMarkerAttachContext(markers: MarkerTransferData[]): IDiagnosticVariableEntry[] {
 		return markers.map((marker): IDiagnosticVariableEntry => {
-			const filter: Mutable<IDiagnosticVariableEntryFilterData> = {};
+			let filter: IDiagnosticVariableEntryFilterData;
 			if (!('severity' in marker)) {
-				filter.filterUri = URI.revive(marker.uri);
-				filter.filterSeverity = MarkerSeverity.Warning;
+				filter = { filterUri: URI.revive(marker.uri), filterSeverity: MarkerSeverity.Warning };
 			} else {
-				filter.filterUri = URI.revive(marker.resource);
-				filter.filterSeverity = marker.severity;
-				filter.filterRange = {
-					startLineNumber: marker.startLineNumber,
-					startColumn: marker.startColumn,
-					endLineNumber: marker.endLineNumber,
-					endColumn: marker.endColumn
-				};
+				filter = IDiagnosticVariableEntryFilterData.fromMarker(marker);
 			}
 
 			return {
-				kind: 'diagnostic',
-				id: IDiagnosticVariableEntryFilterData.id(filter),
-				name: IDiagnosticVariableEntryFilterData.label(filter),
-				value: filter,
+				...IDiagnosticVariableEntryFilterData.toEntry(filter),
 				...filter,
 			};
 		});
@@ -460,11 +508,18 @@ async function resolveFilesInDirectory(resource: URI, fileSystemProvider: IFileS
 
 async function getResourceAttachContext(resource: URI, isDirectory: boolean, textModelService: ITextModelService): Promise<IChatRequestVariableEntry | undefined> {
 	let isOmitted = false;
-	try {
-		const createdModel = await textModelService.createModelReference(resource);
-		createdModel.dispose();
-	} catch {
-		isOmitted = true;
+
+	if (!isDirectory) {
+		try {
+			const createdModel = await textModelService.createModelReference(resource);
+			createdModel.dispose();
+		} catch {
+			isOmitted = true;
+		}
+
+		if (/\.(svg)$/i.test(resource.path)) {
+			isOmitted = true;
+		}
 	}
 
 	return {
@@ -514,4 +569,18 @@ function symbolId(resource: URI, range?: IRange): string {
 		}
 	}
 	return resource.fsPath + rangePart;
+}
+
+function extractImageAttributes(html: string): { src: string; alt?: string } {
+	const imgTagRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/;
+	const altRegex = /alt=["']([^"']+)["']/;
+
+	const match = imgTagRegex.exec(html);
+	if (match) {
+		const src = match[1];
+		const altMatch = match[0].match(altRegex);
+		return { src, alt: altMatch ? altMatch[1] : undefined };
+	}
+
+	return { src: '', alt: undefined };
 }
