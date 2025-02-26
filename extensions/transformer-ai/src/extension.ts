@@ -31,10 +31,9 @@ export async function activate(context: vscode.ExtensionContext) {
 				toolCalling: true
 			}
 		};
+		const lmDisposable = vscode.lm.registerChatModelProvider('transformer.ai', provider, metadata);
+		context.subscriptions.push(lmDisposable);
 
-		// Register the language model provider
-
-		// Create and register the chat participant
 		const chatParticipant = new TransformerChatParticipant(outputChannel);
 		const participant = vscode.chat.createChatParticipant(
 			'transformer.ai',
@@ -43,8 +42,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		participant.iconPath = new vscode.ThemeIcon('transformer-logo');
 		context.subscriptions.push(participant);
 
-		const lmDisposable = vscode.lm.registerChatModelProvider('transformer.ai', provider, metadata);
-		context.subscriptions.push(lmDisposable);
 		console.log('Transformer AI Extension - Activation complete');
 
 	} catch (error) {

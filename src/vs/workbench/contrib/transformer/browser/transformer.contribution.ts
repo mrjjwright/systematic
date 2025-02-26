@@ -26,13 +26,7 @@ import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { IObservable, observableValue } from '../../../../base/common/observable.js';
 import { ITestProfileService } from '../../../../workbench/contrib/testing/common/testProfileService.js';
 import { TestIdPathParts } from '../../testing/common/testId.js';
-import { IChatService } from '../../../contrib/chat/common/chatService.js';
-import {
-	ChatAgentLocation,
-} from '../../../contrib/chat/common/chatAgents.js';
-import { ISheetService } from '../../../services/sheet/browser/sheetService.js';
-import { URI } from '../../../../base/common/uri.js';
-import { ShowChatAction } from '../../chat/browser/actions/extend_chatActions.js';
+
 
 const transformerViewIcon = registerIcon('transformer-view-icon', Codicon.rocket, localize('transformerViewIcon', 'View icon of the transformer view.'));
 
@@ -42,52 +36,47 @@ export const enum TransformerLinkType {
 	Operation = 'operation'
 }
 
-export interface ITransformerLink {
+export interface IOpLinkBase {
 	type: TransformerLinkType;
-	sourceParamName: string;
+	paramName: string;
 }
 
 // Specific link type for context keys
-export interface IContextKeyLink extends ITransformerLink {
+export interface IContextKeyLink extends IOpLinkBase {
 	type: TransformerLinkType.ContextKey;
-	targetContextKey: string;
+	contextKey: string;
 }
 
 // Specific link type for operation jumps
-export interface IOperationLink extends ITransformerLink {
+export interface IOpLink extends IOpLinkBase {
 	type: TransformerLinkType.Operation;
 	targetOperationId: string;
 }
 
 // Operation parameter that can be linked
-export interface ITransformerParam {
+export interface IOpParam {
 	name: string;
 	value?: any;
-	link?: IContextKeyLink | IOperationLink;
+	link?: IContextKeyLink | IOpLink;
 }
 
 // Operation types for the transformer
-export interface ITransformerOperation {
-	extId: string;
+export interface IOpCall {
+	callId: string;
+	opDefId: string;
 	description: string;
-	type: 'setContext'
-	| 'showDialog'
-	| 'uiClear'
-	| 'uiButton'
-	| 'uiText'
-	| 'readSheet'
-	| 'startChat';
-	params: ITransformerParam[];
+	params: IOpParam[];
+	type: string; // Type of operation
 }
 
 export interface ITransformerRunRequest extends ICallProfileRunHandler {
 	runId: string;
 }
 
-export type IOperationImpl = (accessor: ServicesAccessor, operation: ITransformerOperation, params: ITransformerParam[]) => Promise<void>;
+export type IOpImpl = (accessor: ServicesAccessor, operation: IOpCall, params: IOpParam[]) => Promise<void>;
 
 // Add new interfaces for operation registry
-export interface IOperationDefinition {
+export interface IOpDef {
 	id: string;
 	description: string;
 	parameterSchema: {
@@ -97,15 +86,15 @@ export interface IOperationDefinition {
 		required: boolean;
 		defaultValue?: any;
 	}[];
-	impl: IOperationImpl;
-	validateParams?: (params: ITransformerParam[]) => string | undefined;
+	impl: IOpImpl;
+	validateParams?: (params: IOpParam[]) => string | undefined;
 }
 
-export class OperationRegistry {
-	private readonly _operations = new Map<string, IOperationDefinition>();
+export class OpRegistry {
+	private readonly _opDefs = new Map<string, IOpDef>();
 
-	registerOperation(def: IOperationDefinition): void {
-		if (this._operations.has(def.id)) {
+	registerOpDef(def: IOpDef): void {
+		if (this._opDefs.has(def.id)) {
 			throw new Error(`Operation ${def.id} already registered`);
 		}
 
@@ -115,27 +104,27 @@ export class OperationRegistry {
 			}
 		}
 
-		this._operations.set(def.id, def);
+		this._opDefs.set(def.id, def);
 	}
 
-	getOperation(id: string): IOperationDefinition | undefined {
-		return this._operations.get(id);
+	getOp(id: string): IOpDef | undefined {
+		return this._opDefs.get(id);
 	}
 
-	validateOperation(op: ITransformerOperation): string | undefined {
-		const def = this._operations.get(op.type);
-		if (!def) { return `Unknown operation type: ${op.type}`; }
+	validateOpCall(opCall: IOpCall): string | undefined {
+		const def = this._opDefs.get(opCall.opDefId);
+		if (!def) { return `Unknown operation type: ${opCall.opDefId}`; }
 
 		for (const paramDef of def.parameterSchema) {
 			if (paramDef.required) {
-				const param = op.params.find(p => p.name === paramDef.name);
+				const param = opCall.params.find(p => p.name === paramDef.name);
 				if (!param) {
 					return `Missing required parameter: ${paramDef.name}`;
 				}
 			}
 		}
 
-		return def.validateParams?.(op.params);
+		return def.validateParams?.(opCall.params);
 	}
 }
 
@@ -217,8 +206,9 @@ class ViewOperationPane extends ViewPane {
 export class TransformerContribution extends Disposable implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.transformer';
 	private testControllerRegistration: IDisposable | undefined;
-	private operations: Map<string, ITransformerOperation> = new Map();
-	private readonly operationRegistry = new OperationRegistry();
+	private readonly operationRegistry = new OpRegistry();
+	// Store operations for lookup
+	private readonly operations = new Map<string, IOpCall>();
 
 	constructor(
 		@IContextKeyService contextKeyService: IContextKeyService,
@@ -231,32 +221,31 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		contextKeyService.createKey(IS_TRANSFORMER_ENABLED.key, true);
 		this.logService.info('Transformer initialized');
 
-		// Register our chat agent first
-
-		// Then continue with other registrations
-		this.registerActions();
 		this.registerViewlet();
 		this.registerTestController();
 		this.registerOperations();
 	}
 
-	private registerActions(): void {
-
+	getOperation(operationId: string): IOpCall | undefined {
+		return this.operations.get(operationId);
 	}
 
+	static TRANSFORMER_CONTROLLER_ID = 'workbench.transformer.testController';
+
+
 	private registerTestController(): void {
-		const controllerId = 'workbench.transformer.testController';
 		const that = this;
 
 		const myController: IMainThreadTestController = {
-			id: controllerId,
+			id: TransformerContribution.ID,
 			label: testControllerLabel,
 			capabilities: testControllerCapabilities,
 
 			async syncTests(token: CancellationToken) {
+
 				// First create root node
 				const rootNode: ITestItem = {
-					extId: controllerId,
+					extId: TransformerContribution.ID,
 					label: 'Hello World Program',
 					tags: [],
 					busy: false,
@@ -271,45 +260,14 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				const rootDiff: TestsDiff = [{
 					op: TestDiffOpType.Add,
 					item: {
-						controllerId,
+						controllerId: TransformerContribution.ID,
 						expand: TestItemExpandState.Expanded,
 						item: rootNode
 					}
 				}];
 
-				that.testService.publishDiff(controllerId, rootDiff);
+				that.testService.publishDiff(TransformerContribution.ID, rootDiff);
 
-				const helloWorldProgram = createHelloWorldProgram(controllerId);
-
-				// Store the operations from hello world program
-				for (const operation of helloWorldProgram) {
-					that.addOperation(operation);
-				}
-
-				// Convert operations to test items and add them
-				const operations: TestsDiff = helloWorldProgram.map(operation => ({
-					op: TestDiffOpType.Add,
-					item: {
-						controllerId,
-						expand: TestItemExpandState.NotExpandable,
-						item: operationToTestItem(operation)
-					}
-				}));
-
-				// Publish operations
-				that.testService.publishDiff(controllerId, operations);
-
-				// Add a run profile for the controller
-				that.testProfileService.addProfile(myController, {
-					controllerId,
-					profileId: 1,
-					label: 'Run Transformer Operations',
-					group: TestRunProfileBitset.Run,
-					hasConfigurationHandler: false,
-					isDefault: true,
-					supportsContinuousRun: false,
-					tag: null
-				});
 			},
 
 			async refreshTests(token: CancellationToken) {
@@ -345,7 +303,20 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			}
 		};
 
-		this.testControllerRegistration = this.testService.registerTestController(controllerId, myController);
+		// Add a run profile for the controller
+		that.testProfileService.addProfile(myController, {
+			controllerId: TransformerContribution.ID,
+			profileId: 1,
+			label: 'Run Transformer Operations',
+			group: TestRunProfileBitset.Run,
+			hasConfigurationHandler: false,
+			isDefault: true,
+			supportsContinuousRun: false,
+			tag: null
+		});
+
+
+		this.testControllerRegistration = this.testService.registerTestController(TransformerContribution.ID, myController);
 		const ct = CancellationToken.None;
 		myController.syncTests(ct);
 		this._register(this.testControllerRegistration);
@@ -412,150 +383,69 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		], VIEW_CONTAINER);
 	}
 
-	// Helper to get operation details
-	private getOperation(testId: string): ITransformerOperation | undefined {
-		return this.operations.get(testId);
-	}
-
-	// Add helper to store operations
-	private addOperation(operation: ITransformerOperation): void {
-		this.operations.set(operation.extId, operation);
-	}
 
 	private registerOperations(): void {
-		// Register show dialog operation
-		this.operationRegistry.registerOperation({
-			id: OPERATION_SHOW_DIALOG,
-			description: 'Shows a dialog to the user',
-			parameterSchema: [{
-				type: 'string',
-				name: 'text',
-				description: 'Message to show',
-				required: true
-			}, {
-				type: 'string',
-				name: 'level',
-				description: 'Dialog level',
-				required: false,
-				defaultValue: 'Info'
-			}],
-			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
-				const dialogService = accessor.get(IDialogService);
-				const text = params.find(p => p.name === 'text')?.value;
-				const level = params.find(p => p.name === 'level')?.value ?? 'Info';
-
-				if (!text) { throw new Error('Missing text parameter'); }
-				return dialogService.info(level, text);
-			}
-		});
-
-		// Register read sheet operation
-		this.operationRegistry.registerOperation({
-			id: OPERATION_READ_SHEET,
-			description: 'Reads a cell from a spreadsheet and shows the result in a dialog',
-			parameterSchema: [],
-			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
-				const dialogService = accessor.get(IDialogService);
-				const sheetService = accessor.get(ISheetService);
-
-				try {
-					// Hardcoded path for now - will be made configurable later
-					const uri = URI.file('/Users/jjwright/downloads/receipts.xls');
-					const cell = await sheetService.readCell(uri, 0, 0);
-					return dialogService.info('Sheet Cell Value', `Value at (0,0): ${cell.value}`);
-				} catch (err) {
-					return dialogService.error('Error Reading Sheet', err.message);
-				}
-			}
-		});
-
 		// Register set context operation
-		this.operationRegistry.registerOperation({
-			id: OPERATION_SET_CONTEXT,
+		this.operationRegistry.registerOpDef({
+			id: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, OPERATION_SET_CONTEXT),
 			description: 'Sets a context key value',
 			parameterSchema: [{
 				type: 'string',
 				name: 'key',
-				description: 'Context key name',
+				description: 'Context key to set',
 				required: true
 			}, {
 				type: 'string',
 				name: 'value',
-				description: 'Context key value',
+				description: 'Value to set',
 				required: true
 			}],
-			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
+			impl: async (accessor: ServicesAccessor, _: IOpCall, params: IOpParam[]): Promise<void> => {
 				const contextKeyService = accessor.get(IContextKeyService);
 				const key = params.find(p => p.name === 'key')?.value;
 				const value = params.find(p => p.name === 'value')?.value;
 
-				if (!key) { throw new Error('Missing key parameter'); }
-				contextKeyService.createKey(key, value);
+				if (key && value !== undefined) {
+					contextKeyService.createKey(key, value);
+				}
 			}
 		});
 
-		// Register chat operation
-		this.operationRegistry.registerOperation({
-			id: OPERATION_START_CHAT,
-			description: 'Starts a chat session with a specific prompt',
+		// Register show dialog operation
+		this.operationRegistry.registerOpDef({
+			id: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, OPERATION_SHOW_DIALOG),
+			description: 'Shows a dialog with the specified text',
 			parameterSchema: [{
 				type: 'string',
-				name: 'prompt',
-				description: 'Message to send to chat',
+				name: 'text',
+				description: 'Text to show in the dialog',
+				required: true
+			}, {
+				type: 'string',
+				name: 'level',
+				description: 'Dialog level (Info, Warning, Error)',
 				required: false,
-				defaultValue: 'write a poem'
+				defaultValue: 'Info'
 			}],
-			impl: async (accessor: ServicesAccessor, _: ITransformerOperation, params: ITransformerParam[]) => {
-				const chatService = accessor.get(IChatService);
-				const instantiationService = accessor.get(IInstantiationService);
+			impl: async (accessor: ServicesAccessor, _: IOpCall, params: IOpParam[]): Promise<void> => {
+				const dialogService = accessor.get(IDialogService);
+				const text = params.find(p => p.name === 'text')?.value;
 
-				if (!chatService.isEnabled(ChatAgentLocation.Panel)) {
-					throw new Error('Chat is not available');
-				}
+				if (text) {
 
-				// Create session and wait for initialization
-				const session = chatService.startSession(ChatAgentLocation.Panel, CancellationToken.None);
-				await session.waitForInitialization();
 
-				// Use ShowChatAction to display the chat
-				try {
-					const showChatAction = instantiationService.createInstance(ShowChatAction);
-					instantiationService.invokeFunction(showChatAction.run, { sessionId: session.sessionId });
-				} catch (err) {
-					this.logService.error('Error displaying chat', err);
-				}
-
-				// Get prompt and prepare request
-				const prompt = params.find(p => p.name === 'prompt')?.value ?? 'write a poem';
-
-				// Explicitly specify our transformer agent ID and wait for response
-				const response = await chatService.sendRequest(session.sessionId, prompt, {
-					agentId: 'transformer.ai'
-				});
-
-				if (!response) {
-					throw new Error('Failed to send chat request');
-				}
-
-				// Wait for both creation and completion
-				await Promise.all([
-					response.responseCreatedPromise,
-					response.responseCompletePromise
-				]);
-
-				// Validate response was added
-				const requests = session.getRequests();
-				if (!requests.length || !requests[0].response) {
-					throw new Error('Request was not properly added to chat history');
+					await dialogService.info(text);
 				}
 			}
 		});
 
 
+		// Store operations for lookup
+		const helloWorldProgram = createHelloWorldProgram(TransformerContribution.TRANSFORMER_CONTROLLER_ID);
+		for (const operation of helloWorldProgram) {
+			this.operations.set(operation.callId, operation);
+		}
 	}
-
-
-
 }
 
 registerWorkbenchContribution2(TransformerContribution.ID, TransformerContribution, WorkbenchPhase.BlockRestore);
@@ -574,14 +464,14 @@ export const OPERATION_READ_SHEET = 'readSheet';
  * @param operation The operation definition containing type and parameters
  * @returns An array of resolved parameters with linked values populated
  */
-export function resolveParams(accessor: ServicesAccessor, operation: ITransformerOperation) {
+export function resolveParams(accessor: ServicesAccessor, operation: IOpCall) {
 	const contextKeyService = accessor.get(IContextKeyService);
 
 	return operation.params.map(param => {
 		if (param.link?.type === TransformerLinkType.ContextKey) {
 			return {
 				...param,
-				value: contextKeyService.getContextKeyValue(param.link.targetContextKey)
+				value: contextKeyService.getContextKeyValue(param.link.contextKey)
 			};
 		}
 		return param;
@@ -597,15 +487,15 @@ export function resolveParams(accessor: ServicesAccessor, operation: ITransforme
  */
 export async function runOperation(
 	accessor: ServicesAccessor,
-	registry: OperationRegistry,
-	operation: ITransformerOperation
+	registry: OpRegistry,
+	operation: IOpCall
 ) {
-	const def = registry.getOperation(operation.type);
+	const def = registry.getOp(operation.opDefId);
 	if (!def) {
-		throw new Error(`Unknown operation type: ${operation.type}`);
+		throw new Error(`Unknown operation type: ${operation.opDefId}`);
 	}
 
-	const error = registry.validateOperation(operation);
+	const error = registry.validateOpCall(operation);
 	if (error) {
 		throw new Error(`Invalid operation: ${error}`);
 	}
@@ -614,9 +504,9 @@ export async function runOperation(
 	return def.impl(accessor, operation, resolvedParams);
 }
 
-export function operationToTestItem(operation: ITransformerOperation): ITestItem {
+export function operationToTestItem(operation: IOpCall): ITestItem {
 	return {
-		extId: operation.extId,
+		extId: operation.callId,
 		label: operation.type,
 		tags: [],
 		busy: false,
@@ -628,11 +518,16 @@ export function operationToTestItem(operation: ITransformerOperation): ITestItem
 	};
 }
 
+export function formExtOperationId(controllerId: string, operationId: string) {
+	return `${controllerId}${TestIdPathParts.Delimiter}${operationId}`;
+}
+
 export function createHelloWorldProgram(controllerId: string) {
-	const helloWorldProgram: ITransformerOperation[] = [
+	const helloWorldProgram: IOpCall[] = [
 		{
-			extId: `${controllerId}${TestIdPathParts.Delimiter}setContext`,
+			callId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, 'setContext'),
 			description: 'Sets a welcome message in context',
+			opDefId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, OPERATION_SET_CONTEXT),
 			type: 'setContext',
 			params: [{
 				name: 'key',
@@ -643,33 +538,34 @@ export function createHelloWorldProgram(controllerId: string) {
 			}]
 		},
 		{
-			extId: `${controllerId}${TestIdPathParts.Delimiter}showDialog`,
+			callId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, 'showDialog'),
 			description: 'Shows the welcome message in a dialog',
+			opDefId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, OPERATION_SHOW_DIALOG),
 			type: 'showDialog',
 			params: [{
 				name: 'text',
 				link: {
 					type: TransformerLinkType.ContextKey,
-					sourceParamName: 'text',
-					targetContextKey: 'message'
+					paramName: 'text',
+					contextKey: 'message'
 				}
 			}, {
 				name: 'level',
 				value: 'Info'
 			}]
 		},
-		{
-			extId: `${controllerId}${TestIdPathParts.Delimiter}startChat`,
-			description: 'Opens chat and requests a poem',
-			type: 'startChat',
-			params: [] // Using default 'write a poem' prompt
-		},
-		{
-			extId: `${controllerId}${TestIdPathParts.Delimiter}readSheet`,
-			description: 'Reads a cell from a spreadsheet and shows the result in a dialog',
-			type: 'readSheet',
-			params: []
-		}
+		// {
+		// 	extId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, 'startChat'),
+		// 	description: 'Opens chat and requests a poem',
+		// 	type: 'startChat',
+		// 	params: [] // Using default 'write a poem' prompt
+		// },
+		// {
+		// 	extId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, 'readSheet'),
+		// 	description: 'Reads a cell from a spreadsheet and shows the result in a dialog',
+		// 	type: 'readSheet',
+		// 	params: []
+		// }
 	];
 
 	return helloWorldProgram;
