@@ -90,7 +90,7 @@ export interface IOpDef {
 	validateParams?: (params: IOpParam[]) => string | undefined;
 }
 
-export class OpRegistry {
+export class OpDefRegistry {
 	private readonly _opDefs = new Map<string, IOpDef>();
 
 	registerOpDef(def: IOpDef): void {
@@ -128,6 +128,43 @@ export class OpRegistry {
 	}
 }
 
+export class ProgramRunner {
+	private readonly operations = new Map<string, IOpCall>();
+
+	constructor(private readonly opRegistry: OpDefRegistry) {
+		// Optionally store any needed services or references here
+	}
+
+	registerOperations(ops: IOpCall[]): void {
+		for (const operation of ops) {
+			this.operations.set(operation.callId, operation);
+		}
+	}
+
+	getOperation(operationId: string): IOpCall | undefined {
+		return this.operations.get(operationId);
+	}
+
+	getAllOperations(): Map<string, IOpCall> {
+		return this.operations;
+	}
+
+	async runOperation(accessor: ServicesAccessor, operationId: string): Promise<void> {
+		const operation = this.getOperation(operationId);
+		if (!operation) {
+			throw new Error(`No operation found for id: ${operationId}`);
+		}
+
+		await runOperation(accessor, this.opRegistry, operation);
+	}
+
+	async runProgram(accessor: ServicesAccessor, operationIds: string[]): Promise<void> {
+		for (const opId of operationIds) {
+			await this.runOperation(accessor, opId);
+		}
+	}
+}
+
 export const IS_TRANSFORMER_ENABLED = new RawContextKey<boolean>('isTransformerEnabled', true);
 export const IS_LINKING_MODE = new RawContextKey<boolean>('isTransformerLinkingMode', false);
 
@@ -143,7 +180,6 @@ class TransformerViewPaneContainer extends ViewPaneContainer {
 		@IStorageService storageService: IStorageService,
 		@IConfigurationService configurationService: IConfigurationService,
 		@IInstantiationService instantiationService: IInstantiationService,
-		@IContextKeyService contextKeyService: IContextKeyService,
 		@IThemeService themeService: IThemeService,
 		@IContextMenuService contextMenuService: IContextMenuService,
 		@IExtensionService extensionService: IExtensionService,
@@ -206,9 +242,8 @@ class ViewOperationPane extends ViewPane {
 export class TransformerContribution extends Disposable implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.transformer';
 	private testControllerRegistration: IDisposable | undefined;
-	private readonly operationRegistry = new OpRegistry();
-	// Store operations for lookup
-	private readonly operations = new Map<string, IOpCall>();
+	private readonly opDefRegistry = new OpDefRegistry();
+	private readonly programRunner: ProgramRunner;
 
 	constructor(
 		@IContextKeyService contextKeyService: IContextKeyService,
@@ -221,13 +256,21 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		contextKeyService.createKey(IS_TRANSFORMER_ENABLED.key, true);
 		this.logService.info('Transformer initialized');
 
+		this.programRunner = new ProgramRunner(this.opDefRegistry);
+
 		this.registerViewlet();
-		this.registerTestController();
 		this.registerOperations();
+
+		// Create a test program
+		const helloWorldProgram = createHelloWorldProgram(TransformerContribution.TRANSFORMER_CONTROLLER_ID);
+		this.programRunner.registerOperations(helloWorldProgram);
+
+		this.registerTestController();
+
 	}
 
 	getOperation(operationId: string): IOpCall | undefined {
-		return this.operations.get(operationId);
+		return this.programRunner.getOperation(operationId);
 	}
 
 	static TRANSFORMER_CONTROLLER_ID = 'workbench.transformer.testController';
@@ -237,7 +280,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		const that = this;
 
 		const myController: IMainThreadTestController = {
-			id: TransformerContribution.ID,
+			id: TransformerContribution.TRANSFORMER_CONTROLLER_ID,
 			label: testControllerLabel,
 			capabilities: testControllerCapabilities,
 
@@ -245,7 +288,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 				// First create root node
 				const rootNode: ITestItem = {
-					extId: TransformerContribution.ID,
+					extId: TransformerContribution.TRANSFORMER_CONTROLLER_ID,
 					label: 'Hello World Program',
 					tags: [],
 					busy: false,
@@ -260,14 +303,24 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 				const rootDiff: TestsDiff = [{
 					op: TestDiffOpType.Add,
 					item: {
-						controllerId: TransformerContribution.ID,
+						controllerId: TransformerContribution.TRANSFORMER_CONTROLLER_ID,
 						expand: TestItemExpandState.Expanded,
 						item: rootNode
 					}
 				}];
 
-				that.testService.publishDiff(TransformerContribution.ID, rootDiff);
+				that.testService.publishDiff(TransformerContribution.TRANSFORMER_CONTROLLER_ID, rootDiff);
 
+				// Add operations as test items
+				const operationsDiff = operationsToTestDiff(
+					TransformerContribution.TRANSFORMER_CONTROLLER_ID,
+					that.programRunner.getAllOperations()
+				);
+
+
+				if (operationsDiff.length > 0) {
+					that.testService.publishDiff(TransformerContribution.TRANSFORMER_CONTROLLER_ID, operationsDiff);
+				}
 			},
 
 			async refreshTests(token: CancellationToken) {
@@ -277,10 +330,9 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 			async runTests(request: IStartControllerTests[], token: CancellationToken): Promise<IStartControllerTestsResult[]> {
 				for (const req of request) {
 					for (const testIdString of req.testIds) {
-						const operation = that.getOperation(testIdString);
-						if (operation) {
-							that.instantiationService.invokeFunction(accessor => runOperation(accessor, that.operationRegistry, operation));
-						}
+						await that.instantiationService.invokeFunction(async accessor => {
+							await that.programRunner.runOperation(accessor, testIdString);
+						});
 					}
 				}
 				return [];
@@ -305,7 +357,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 		// Add a run profile for the controller
 		that.testProfileService.addProfile(myController, {
-			controllerId: TransformerContribution.ID,
+			controllerId: TransformerContribution.TRANSFORMER_CONTROLLER_ID,
 			profileId: 1,
 			label: 'Run Transformer Operations',
 			group: TestRunProfileBitset.Run,
@@ -386,7 +438,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 
 	private registerOperations(): void {
 		// Register set context operation
-		this.operationRegistry.registerOpDef({
+		this.opDefRegistry.registerOpDef({
 			id: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, OPERATION_SET_CONTEXT),
 			description: 'Sets a context key value',
 			parameterSchema: [{
@@ -412,7 +464,7 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		});
 
 		// Register show dialog operation
-		this.operationRegistry.registerOpDef({
+		this.opDefRegistry.registerOpDef({
 			id: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, OPERATION_SHOW_DIALOG),
 			description: 'Shows a dialog with the specified text',
 			parameterSchema: [{
@@ -440,11 +492,6 @@ export class TransformerContribution extends Disposable implements IWorkbenchCon
 		});
 
 
-		// Store operations for lookup
-		const helloWorldProgram = createHelloWorldProgram(TransformerContribution.TRANSFORMER_CONTROLLER_ID);
-		for (const operation of helloWorldProgram) {
-			this.operations.set(operation.callId, operation);
-		}
 	}
 }
 
@@ -487,7 +534,7 @@ export function resolveParams(accessor: ServicesAccessor, operation: IOpCall) {
  */
 export async function runOperation(
 	accessor: ServicesAccessor,
-	registry: OpRegistry,
+	registry: OpDefRegistry,
 	operation: IOpCall
 ) {
 	const def = registry.getOp(operation.opDefId);
@@ -522,12 +569,37 @@ export function formExtOperationId(controllerId: string, operationId: string) {
 	return `${controllerId}${TestIdPathParts.Delimiter}${operationId}`;
 }
 
+/**
+ * Converts a map of operations to a TestDiff
+ * @param controllerId The controller ID
+ * @param rootNodeId The ID of the root node to attach operations to
+ * @param operations The operations to create test items for
+ * @returns A TestsDiff array with test items for each operation
+ */
+export function operationsToTestDiff(controllerId: string, operations: Map<string, IOpCall>): TestsDiff {
+	const items: TestsDiff = [];
+	for (const [_, operation] of operations) {
+		const testItem = operationToTestItem(operation);
+		items.push({
+			op: TestDiffOpType.Add,
+			item: {
+				controllerId,
+				expand: TestItemExpandState.NotExpandable,
+				item: testItem
+			}
+		});
+	}
+	return items;
+}
+
 export function createHelloWorldProgram(controllerId: string) {
+	const setContext = formExtOperationId(controllerId, OPERATION_SET_CONTEXT);
+	const showDialog = formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, OPERATION_SHOW_DIALOG);
 	const helloWorldProgram: IOpCall[] = [
 		{
-			callId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, 'setContext'),
+			callId: setContext,
 			description: 'Sets a welcome message in context',
-			opDefId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, OPERATION_SET_CONTEXT),
+			opDefId: setContext,
 			type: 'setContext',
 			params: [{
 				name: 'key',
@@ -538,9 +610,9 @@ export function createHelloWorldProgram(controllerId: string) {
 			}]
 		},
 		{
-			callId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, 'showDialog'),
+			callId: showDialog,
 			description: 'Shows the welcome message in a dialog',
-			opDefId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, OPERATION_SHOW_DIALOG),
+			opDefId: showDialog,
 			type: 'showDialog',
 			params: [{
 				name: 'text',
@@ -554,18 +626,6 @@ export function createHelloWorldProgram(controllerId: string) {
 				value: 'Info'
 			}]
 		},
-		// {
-		// 	extId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, 'startChat'),
-		// 	description: 'Opens chat and requests a poem',
-		// 	type: 'startChat',
-		// 	params: [] // Using default 'write a poem' prompt
-		// },
-		// {
-		// 	extId: formExtOperationId(TransformerContribution.TRANSFORMER_CONTROLLER_ID, 'readSheet'),
-		// 	description: 'Reads a cell from a spreadsheet and shows the result in a dialog',
-		// 	type: 'readSheet',
-		// 	params: []
-		// }
 	];
 
 	return helloWorldProgram;
